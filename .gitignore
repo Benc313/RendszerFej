@@ -1,0 +1,47 @@
+# Ignore node_modules directory
+node_modules/
+
+# Ignore log files
+*.log
+
+# Ignore environment variable files
+.env
+
+# Ignore build directories
+dist/
+build/
+
+# Ignore temporary files
+*.tmp
+*.swp
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.iml
+
+# Ignore Rider specific files
+.idea/
+*.sln.iml
+*.sln.DotSettings
+*.sln.DotSettings.user
+
+# Ignore Visual Studio specific files
+.vs/
+*.csproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore Angular specific files
+.angular/
+coverage/
+
+# Ignore .NET Core specific files
+bin/
+obj/
