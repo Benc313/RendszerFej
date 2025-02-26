@@ -20,12 +20,13 @@ namespace Backend.Model
         public string PasswordHash { get; set; }
 
         [Required]
+        [Column(TypeName = "varchar(16)")]
         public string Phone { get; set; }
 
         [Required]
         public string Role { get; set; }
 
-        public DateTime BannedTill { get; set; }
+        public DateTime? BannedTill { get; set; } = null;
 
     }
 }

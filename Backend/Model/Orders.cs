@@ -8,9 +8,7 @@ namespace Backend.Model
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public int User_Id { get; set; }
-
+        [Column(TypeName = "varchar(16)")]
         public string? Phone { get; set; }
 
         [Column(TypeName = "varchar(320)")]
