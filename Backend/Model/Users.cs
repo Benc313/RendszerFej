@@ -28,5 +28,6 @@ namespace Backend.Model
 
         public DateTime? BannedTill { get; set; } = null;
 
+        public List<Orders> Orders { get; set; } = new List<Orders>();
     }
 }

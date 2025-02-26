@@ -10,7 +10,8 @@ namespace Backend.Model
 
         [Required]
         public DateTime ScreeningDate { get; set; }
-
-
+        public List<Ticket> Tickets { get; set; } = new List<Ticket>();
+        public Terem Terem { get; set; }
+        public Movie Movie { get; set; }
     }
 }
