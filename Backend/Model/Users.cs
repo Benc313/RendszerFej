@@ -6,7 +6,7 @@ namespace Backend.Model
     public class Users
     {
         [Key]
-        public int id { get; set; }
+        public int Id { get; set; }
         
         [Required]
         [Column(TypeName = "varchar(32)")]
