@@ -45,3 +45,4 @@ coverage/
 # Ignore .NET Core specific files
 bin/
 obj/
+Backend/LocalDatabase.db

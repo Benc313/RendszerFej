@@ -15,6 +15,9 @@ namespace Backend.Model
         public string Description { get; set; }
         [Required]
         public uint Duration { get; set; }
+        
+        
+        public List<Screening> Screenings { get; set; } = new List<Screening>();
 
     }
 }
