@@ -18,8 +18,9 @@ namespace Backend.Model
         [Required]
         [Column(TypeName = "varchar(32)")]
         public string Status { get; set; }
-
-        
-
+        public int OrderId { get; set; }
+        public int ScreeningId { get; set; }
+        public Orders Order { get; set; }
+        public Screening Screening { get; set; }
     }
 }
