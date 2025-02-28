@@ -16,6 +16,6 @@ namespace Backend.Model
         [Required]
         public int Seats { get; set; }
         
-        public List<Screening> Screenings { get; set; }
+        public List<Screening> Screenings { get; set; } = new List<Screening>();
     }
 }
