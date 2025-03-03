@@ -61,4 +61,14 @@ public class AuthController : ControllerBase
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
 		return Ok(new LoginResponse(user));
 	}
+	
+	[HttpPost("logout")]
+	//[Authorize] // Uncomment this line to require authentication
+	public async Task<ActionResult> Logout()
+	{
+		// Delete user cookie here
+		return Ok();
+	}
+	
+	
 }
