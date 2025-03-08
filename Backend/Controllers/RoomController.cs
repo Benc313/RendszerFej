@@ -17,7 +17,7 @@ public class RoomController : ControllerBase
 		_db = db;
 	}
 
-	[HttpPost("/add")]
+	[HttpPost()]
 	public async Task<ActionResult<RoomResponse>> AddRoom(RoomRequest roomRequest)
 	{
 		try
@@ -38,5 +38,32 @@ public class RoomController : ControllerBase
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." } });
 		}
+	}
+
+	[HttpGet()]
+	public async Task<ActionResult<List<RoomResponse>>> GetRooms()
+	{
+		List<Terem> rooms = await _db.Terems.ToListAsync();
+		return Ok(rooms.Select(r => new RoomResponse(r)).ToList());
+	}
+
+	[HttpGet("{id}")]
+	public async Task<ActionResult<RoomResponse>> GetRoom(int id)
+	{
+		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		if (room == null)
+			return NotFound();
+		return Ok(new RoomResponse(room));
+	}
+
+	[HttpDelete("{id}")]
+	public async Task<ActionResult> DeleteRoom(int id)
+	{
+		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		if (room == null)
+			return NotFound();
+		_db.Terems.Remove(room);
+		await _db.SaveChangesAsync();
+		return Ok();
 	}
 }
