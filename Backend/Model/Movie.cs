@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Backend.Messages;
 
 namespace Backend.Model
 {
@@ -19,5 +20,21 @@ namespace Backend.Model
         
         public List<Screening> Screenings { get; set; } = new List<Screening>();
 
+        public Movie(MovieRequest movieRequest)
+        {
+            Title = movieRequest.Title;
+            Description = movieRequest.Description;
+            Duration = movieRequest.Duration;
+        }
+        public Movie() { }
+
+        public void Update(MovieRequest movieRequest)
+        {
+            Title = movieRequest.Title;
+            Description = movieRequest.Description;
+            Duration = movieRequest.Duration;
+        }
+        
+     
     }
 }
