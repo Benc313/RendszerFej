@@ -26,5 +26,11 @@ namespace Backend.Model
             Room = roomRequest.Name;
             Seats = roomRequest.Seats;
         }
+
+        public void Update(RoomRequest roomRequest)
+        {
+            Room = roomRequest.Name;
+            Seats = roomRequest.Seats;
+        }
     }
 }

@@ -66,4 +66,15 @@ public class RoomController : ControllerBase
 		await _db.SaveChangesAsync();
 		return Ok();
 	}
+
+	[HttpPut("{id}")]
+	public async Task<ActionResult<RoomResponse>> UpdateRoom(int id, RoomRequest roomRequest)
+	{
+		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		if (room == null)
+			return NotFound();
+		room.Update(roomRequest);
+		await _db.SaveChangesAsync();
+		return Ok(new RoomResponse(room));
+	}
 }
