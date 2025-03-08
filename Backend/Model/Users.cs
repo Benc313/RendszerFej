@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Backend.Messages;
 
 namespace Backend.Model
 {
@@ -24,10 +25,20 @@ namespace Backend.Model
         public string Phone { get; set; }
 
         [Required]
-        public string Role { get; set; }
+        public string Role { get; set; } = "user";
 
         public DateTime? BannedTill { get; set; } = null;
 
         public List<Orders> Orders { get; set; } = new List<Orders>();
+        
+        public Users() { }
+
+        public Users(RegisterRequest registerRequest)
+        {
+            Name = registerRequest.Name;
+            Email = registerRequest.Email;
+            Phone = registerRequest.PhoneNumber;
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerRequest.Password);
+        }
     }
 }
