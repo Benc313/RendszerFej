@@ -19,9 +19,10 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<AllMovieResponse>>> GetMovies() 
+    public async Task<ActionResult<List<AllMovieResponse>>> GetMovies()
     {
-        return Ok(await _db.Movies.ToListAsync());
+        List<Movie> movies = await _db.Movies.ToListAsync();
+        return Ok(movies.Select(x => new AllMovieResponse(x)).ToList());
     }
 
     [HttpGet("{id}")]
