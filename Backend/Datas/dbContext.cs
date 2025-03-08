@@ -23,7 +23,7 @@ public class dbContext : DbContext
 	public DbSet<Screening> Screenings { get; set; }
 	public DbSet<Ticket> Tickets { get; set; }
 	public DbSet<Terem> Terems { get; set; }
-	
+
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{
 		// User
