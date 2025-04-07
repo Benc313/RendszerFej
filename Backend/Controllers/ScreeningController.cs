@@ -104,7 +104,7 @@ namespace Backend.Controllers
             Terem terem = await _db.Terems.FirstOrDefaultAsync(t => t.Room == screeningRequest.TeremName);
             Movie movie = await _db.Movies.FirstOrDefaultAsync(m => m.Title == screeningRequest.MovieTitle);
             screening.Update(screeningRequest, terem, movie);
-            _db.SaveChangesAsync();
+            await _db.SaveChangesAsync();
             return Ok(new ScreeningResponse(screening));
         }
 
