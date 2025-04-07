@@ -19,9 +19,13 @@ namespace Backend.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult<ScreeningResponse>> GetScreenings()
+        public async Task<ActionResult<List<ScreeningResponse>>> GetScreenings()
         {
-            List<Screening> vetitesek = await _db.Screenings.ToListAsync();
+            List<Screening> vetitesek = await _db.Screenings
+                .Include(s => s.Movie)
+                .Include(s => s.Terem)
+                .ToListAsync();
+            Console.WriteLine("Vetitesek: " + vetitesek.Count);
             return Ok(vetitesek.Select(v => new ScreeningResponse(v)).ToList());
         }
 
@@ -32,11 +36,11 @@ namespace Backend.Controllers
             {
                 //itt meg lehetne oldani, hogy string be jöjjön be a screeningtime, és valahol itt konvertáljuk datetime-ba,
                 //- egyenlőre azt feltételezi a kód hogy datetime-ot kap!
-                if (!await _db.Screenings.AnyAsync(s => s.Terem.Room == screeningRequest.TeremName))
+                if (await _db.Screenings.AnyAsync(s => s.Terem.Room == screeningRequest.TeremName))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
                 }
-                else if (!await _db.Screenings.AnyAsync(s => s.Movie.Title == screeningRequest.MovieTitle))
+                else if (await _db.Screenings.AnyAsync(s => s.Movie.Title == screeningRequest.MovieTitle))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Movie title was used!" } });
                 }
@@ -52,7 +56,7 @@ namespace Backend.Controllers
                 _db.Screenings.Add(asd);
 
                 await _db.SaveChangesAsync();
-                return Ok();
+                return Ok(new ScreeningResponse(asd));
             }
             catch (DbUpdateException ex)
             {
@@ -67,7 +71,10 @@ namespace Backend.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ScreeningResponse>> GetScreening(int id)
         {
-            Screening screening = await _db.Screenings.FirstOrDefaultAsync(s => s.Id == id);
+            Screening screening = await _db.Screenings
+                .Include(s => s.Movie)
+                .Include(s => s.Terem)
+                .FirstOrDefaultAsync(s => s.Id == id);
             if (screening == null)
                 return NotFound();
             return Ok(new ScreeningResponse(screening));
@@ -80,6 +87,7 @@ namespace Backend.Controllers
             if (screening == null)
                 return NotFound();
             _db.Screenings.Remove(screening);
+            _db.SaveChangesAsync();
             return Ok();
             //Ide még nagyon kéne hogy a program mit csinál a jegyekkel, küld e emailt a jeggyel rendelkezőknek, stb!!!!!4!4!!@EVERYONE!!FONTOS 
             //ehhez én nem értek c': 
