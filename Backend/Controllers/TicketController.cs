@@ -30,6 +30,6 @@ public class TicketController : ControllerBase
 		}
 		ticket.Status = "VALIDATED";
 		await _db.SaveChangesAsync();
-		return Ok(new { Errors = new List<string> { "Ticket already validated" } });
+		return Ok(new { Message = "Ticket successfully validated" });
 	}
 }
