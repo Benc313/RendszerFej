@@ -60,7 +60,7 @@ namespace Backend.Controllers
             }
             catch (DbUpdateException ex)
             {
-                return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the user. Please try again later." } });
+                return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the screening. Please try again later." } });
             }
             catch (Exception ex)
             {
