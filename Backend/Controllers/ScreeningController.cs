@@ -87,7 +87,7 @@ namespace Backend.Controllers
             if (screening == null)
                 return NotFound();
             _db.Screenings.Remove(screening);
-            _db.SaveChangesAsync();
+            await _db.SaveChangesAsync();
             return Ok();
             //Ide még nagyon kéne hogy a program mit csinál a jegyekkel, küld e emailt a jeggyel rendelkezőknek, stb!!!!!4!4!!@EVERYONE!!FONTOS 
             //ehhez én nem értek c': 
