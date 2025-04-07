@@ -23,13 +23,13 @@ namespace Backend.Model
         
         public Terem(RoomRequest roomRequest)
         {
-            Room = roomRequest.Name;
+            Room = roomRequest.RoomName;
             Seats = roomRequest.Seats;
         }
 
         public void Update(RoomRequest roomRequest)
         {
-            Room = roomRequest.Name;
+            Room = roomRequest.RoomName;
             Seats = roomRequest.Seats;
         }
     }

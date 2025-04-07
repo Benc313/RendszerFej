@@ -22,7 +22,7 @@ public class RoomController : ControllerBase
 	{
 		try
 		{
-			if (await _db.Terems.AnyAsync(r => r.Room == roomRequest.Name))
+			if (await _db.Terems.AnyAsync(r => r.Room == roomRequest.RoomName))
 			{
 				return BadRequest(new { Errors = new List<string> { "Room already exists" } });
 			}
