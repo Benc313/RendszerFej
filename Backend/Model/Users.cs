@@ -30,8 +30,16 @@ namespace Backend.Model
         public DateTime? BannedTill { get; set; } = null;
 
         public List<Orders> Orders { get; set; } = new List<Orders>();
-        
+
         public Users() { }
+        public Users(CashierRequest cashierRequest)
+        {
+            Name = cashierRequest.Name;
+            Email = cashierRequest.Email;
+            Phone = cashierRequest.PhoneNumber;
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(cashierRequest.Password);
+            Role = "cashier";
+        }
 
         public Users(RegisterRequest registerRequest)
         {
