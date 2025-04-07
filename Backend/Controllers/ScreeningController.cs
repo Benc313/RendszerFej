@@ -97,37 +97,15 @@ namespace Backend.Controllers
         public async Task<ActionResult<ScreeningResponse>> UpdateScreeening(int id, ScreeningRequest screeningRequest)
         {
 
-            //var ScreeningToUpdate = await _db.Screenings.FindAsync(id);
-            //if (ScreeningToUpdate == null)
-            //    return NotFound();
-
-            //ScreeningToUpdate.Update(id, screeningRequest);
-            Screening screening = await _db.Screenings.FirstOrDefaultAsync(s => s.Id == id);
-            if (screening == null)
-                return NotFound();
-
-            /*Screening updatedScreening = new Screening
-            {
-                Terem = _db.Terems.First(m => m.Room == screeningRequest.TeremName),
-                Movie = _db.Movies.First(m => m.Title == screeningRequest.MovieTitle),
-                ScreeningDate = screeningRequest.ScreeningDate,
-                Tickets = new List<Ticket>()
-            };*/
-            screening.Movie=await _db.Movies.FirstOrDefaultAsync(x=>x.Title.Equals(screeningRequest.MovieTitle));
-            screening.Terem = await _db.Terems.FirstOrDefaultAsync(x => x.Room.Equals(screeningRequest.TeremName));
-            screening.ScreeningDate = screeningRequest.ScreeningDate;
-
-            await _db.SaveChangesAsync();
-
-            try
-            {
-                await _db.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-
-            }
-            return Ok();
+            Screening screening = await _db.Screenings
+                .Include(s => s.Movie)
+                .Include(s => s.Terem)
+                .FirstOrDefaultAsync(s => s.Id == id);
+            Terem terem = await _db.Terems.FirstOrDefaultAsync(t => t.Room == screeningRequest.TeremName);
+            Movie movie = await _db.Movies.FirstOrDefaultAsync(m => m.Title == screeningRequest.MovieTitle);
+            screening.Update(screeningRequest, terem, movie);
+            _db.SaveChangesAsync();
+            return Ok(new ScreeningResponse(screening));
         }
 
     }

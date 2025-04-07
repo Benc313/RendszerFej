@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using Backend.Messages;
+using expenseTracker.Data;
 using SQLitePCL;
 
 namespace Backend.Model
@@ -22,12 +23,11 @@ namespace Backend.Model
         public int MovieId { get; set; }
         public Movie Movie { get; set; }
 
-        public void Update(int id, ScreeningRequest screeningRequest)
+        public void Update(ScreeningRequest screeningRequest, Terem terem, Movie movie)
         {
             ScreeningDate = screeningRequest.ScreeningDate;
-            Terem = new Terem { Room = screeningRequest.TeremName };
-            Movie = new Movie { Title = screeningRequest.MovieTitle };
-
+            Terem = terem;
+            Movie = movie;
         }
 
         //public Screening(ScreeningRequest screeningRequest)
