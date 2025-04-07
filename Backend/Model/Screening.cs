@@ -13,6 +13,7 @@ namespace Backend.Model
 
         [Required]
         public DateTime ScreeningDate { get; set; }
+        public int Price { get; set; }
         public List<Ticket> Tickets { get; set; } = new List<Ticket>();
 
         [ForeignKey("Terem")]
