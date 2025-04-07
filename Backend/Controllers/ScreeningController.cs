@@ -36,11 +36,11 @@ namespace Backend.Controllers
             {
                 //itt meg lehetne oldani, hogy string be jöjjön be a screeningtime, és valahol itt konvertáljuk datetime-ba,
                 //- egyenlőre azt feltételezi a kód hogy datetime-ot kap!
-                if (await _db.Screenings.AnyAsync(s => s.Terem.Room == screeningRequest.TeremName))
+                if (!await _db.Terems.AnyAsync(t => t.Room == screeningRequest.TeremName))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
                 }
-                else if (await _db.Screenings.AnyAsync(s => s.Movie.Title == screeningRequest.MovieTitle))
+                else if (!await _db.Movies.AnyAsync(s => s.Title == screeningRequest.MovieTitle))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Movie title was used!" } });
                 }
