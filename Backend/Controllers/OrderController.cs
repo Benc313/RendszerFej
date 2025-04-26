@@ -60,7 +60,7 @@ public class OrderController : ControllerBase
                 if (screening.Tickets.Any(t => t.SeatNumber == ticketRequest.SeatNumber))
                     return BadRequest(new { Errors = new List<string> { $"Seat {ticketRequest.SeatNumber} is already taken for screening {ticketRequest.ScreeningId}" } });
 
-                if (screening.ScreeningDate <= DateTime.Now)
+                if (screening.ScreeningDate <= DateTime.UtcNow)
                     return BadRequest(new { Errors = new List<string> { "Cannot purchase tickets for past screenings" } });
 
                 var ticket = new Ticket
@@ -97,7 +97,7 @@ public class OrderController : ControllerBase
         if (order == null)
             return NotFound();
 
-        if (order.Tickets.Any(t => t.Screening.ScreeningDate <= DateTime.Now.AddHours(4)))
+        if (order.Tickets.Any(t => t.Screening.ScreeningDate <= DateTime.UtcNow.AddHours(4)))
             return BadRequest(new { Errors = new List<string> { "Cannot cancel order within 4 hours of screening" } });
 
         _db.Orders.Remove(order);

@@ -36,6 +36,11 @@ namespace Backend.Controllers
         {
             try
             {
+                if (screeningRequest.Price < 0)
+                {
+                    return BadRequest(new { Errors = new List<string> { "Price cannot be negative" } });
+                }
+
                 if (!await _db.Terems.AnyAsync(t => t.Room == screeningRequest.TeremName))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
@@ -71,7 +76,7 @@ namespace Backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later.:"+ex.Message } });
+                return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." + ex.Message } });
             }
         }
 
@@ -103,13 +108,32 @@ namespace Backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ScreeningResponse>> UpdateScreeening(int id, ScreeningRequest screeningRequest)
         {
+            if (screeningRequest.Price < 0)
+            {
+                return BadRequest(new { Errors = new List<string> { "Price cannot be negative" } });
+            }
 
             Screening screening = await _db.Screenings
                 .Include(s => s.Movie)
                 .Include(s => s.Terem)
                 .FirstOrDefaultAsync(s => s.Id == id);
+            if (screening == null)
+            {
+                return NotFound(new { Errors = new List<string> { "Screening not found" } });
+            }
+
             Terem terem = await _db.Terems.FirstOrDefaultAsync(t => t.Room == screeningRequest.TeremName);
+            if (terem == null)
+            {
+                return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
+            }
+
             Movie movie = await _db.Movies.FirstOrDefaultAsync(m => m.Title == screeningRequest.MovieTitle);
+            if (movie == null)
+            {
+                return BadRequest(new { Errors = new List<string> { "No valid Movie title was used!" } });
+            }
+
             screening.Update(screeningRequest, terem, movie);
             await _db.SaveChangesAsync();
             return Ok(new ScreeningResponse(screening));
