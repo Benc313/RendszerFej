@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
 		// Generate JWT token
 		var tokenHandler = new JwtSecurityTokenHandler();
-		var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Secret"]);
+		var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]);
 		var tokenDescriptor = new SecurityTokenDescriptor()
 		{
 			Subject = new System.Security.Claims.ClaimsIdentity(new[]
