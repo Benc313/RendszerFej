@@ -59,14 +59,14 @@ public class MovieController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateMovie(int id, MovieRequest movie) 
+    public async Task<IActionResult> UpdateMovie(int id, MovieRequest movieRequest) 
     {
         var movieToUpdate = await _db.Movies.FindAsync(id);
         if (movieToUpdate == null)
             return NotFound(new { Error = "Movie not found." });
 
-        movieToUpdate.Update(movie);
-        
+        movieToUpdate.Update(movieRequest);
+
         try
         {
             await _db.SaveChangesAsync();
@@ -74,9 +74,10 @@ public class MovieController : ControllerBase
         catch (DbUpdateConcurrencyException)
         {
             return Conflict(new { Error = "Concurrency conflict occurred while updating the movie." });
-        } 
+        }
 
-        return Ok();  
+     
+        return Ok(new MovieResponse(movieToUpdate));
     }
 
     [HttpDelete("{id}")]
