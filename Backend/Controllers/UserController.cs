@@ -2,6 +2,7 @@
 using Backend.Model;
 using expenseTracker.Data;
 using expenseTracker.Validators;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity.Data;
@@ -77,6 +78,7 @@ namespace Backend.Controllers
 
         //for testing purposes only --- later admin use only
         [HttpGet("users")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<Users>>> GetUsers()
         {
             List<Users> users = await _db.Users.ToListAsync();

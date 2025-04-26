@@ -1,12 +1,14 @@
 ﻿using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
 [ApiController]
+[Authorize(Roles = "Admin")]
 [Route("/admin")]
 public class AdminController : ControllerBase
 {

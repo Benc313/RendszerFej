@@ -1,5 +1,8 @@
+using System.Text;
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,7 +17,50 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+	.AddJwtBearer(options =>
+	{
+		options.TokenValidationParameters = new TokenValidationParameters()
+		{
+			ValidateIssuer = true,
+			ValidateAudience = true,
+			ValidateLifetime = true,
+			ValidateIssuerSigningKey = true,
+			ValidIssuer = builder.Configuration["Jwt:Issuer"],
+			ValidAudience = builder.Configuration["Jwt:Audience"],
+			IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]))
+		};
 
+		// Add custom logic to extract the token from the cookie
+		options.Events = new JwtBearerEvents
+		{
+			OnMessageReceived = context =>
+			{
+				// Extract the token from the 'accessToken' cookie
+				var token = context.Request.Cookies["accessToken"];
+				if (!string.IsNullOrEmpty(token))
+				{
+					context.Token = token; // Set the token for validation
+				}
+				return Task.CompletedTask;
+			}
+		};
+	});
+builder.Services.AddAuthorization(options =>
+{
+	options.AddPolicy("AdminPolicy", policy =>
+	{
+		policy.RequireClaim("role", "Admin");
+	});
+	options.AddPolicy("CashierPolicy", policy =>
+	{
+		policy.RequireClaim("role", "Cashier");
+	});
+	options.AddPolicy("UserPolicy", policy =>
+	{
+		policy.RequireClaim("role", "User");
+	});
+});
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
