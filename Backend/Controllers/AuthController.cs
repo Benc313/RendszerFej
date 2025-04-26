@@ -1,9 +1,13 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
 using expenseTracker.Validators;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using ValidationResult = FluentValidation.Results.ValidationResult;
 
 namespace Backend.Controllers;
@@ -59,14 +63,40 @@ public class AuthController : ControllerBase
 
 		if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
+		// Generate JWT token
+		var tokenHandler = new JwtSecurityTokenHandler();
+		var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Secret"]);
+		var tokenDescriptor = new SecurityTokenDescriptor()
+		{
+			Subject = new System.Security.Claims.ClaimsIdentity(new[]
+			{
+				new System.Security.Claims.Claim("id", user.Id.ToString()),
+				new System.Security.Claims.Claim("role", user.Role)
+			}),
+			Expires = DateTime.UtcNow.AddDays(1),
+			Issuer = _configuration["Jwt:Issuer"],
+			Audience = _configuration["Jwt:Audience"],
+			SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+		};
+		var token = tokenHandler.CreateToken(tokenDescriptor);
+		var tokenString = tokenHandler.WriteToken(token);
+		// Set the token in a cookie
+		Response.Cookies.Append("accessToken", tokenString, new CookieOptions
+		{
+			HttpOnly = true,
+			Secure = true,
+			SameSite = SameSiteMode.None,
+			Expires = DateTime.UtcNow.AddDays(1)
+		});
 		return Ok(new LoginResponse(user));
 	}
 	
 	[HttpPost("logout")]
-	//[Authorize] // Uncomment this line to require authentication
+	[Authorize] // Uncomment this line to require authentication
 	public async Task<ActionResult> Logout()
 	{
-		// Delete user cookie here
+		// Remove the token from the cookie
+		Response.Cookies.Delete("accessToken");
 		return Ok();
 	}
 	

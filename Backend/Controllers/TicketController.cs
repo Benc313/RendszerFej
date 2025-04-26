@@ -1,4 +1,5 @@
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,7 @@ public class TicketController : ControllerBase
 	}
 
 	[HttpGet("validate/{id}")]
+	[Authorize(Roles = "Admin, Cashier")]
 	public async Task<ActionResult> ValidateTicket(int id)
 	{
 		//only cashier and admin can validate tickets

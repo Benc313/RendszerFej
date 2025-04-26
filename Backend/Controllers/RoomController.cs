@@ -1,6 +1,7 @@
 using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,7 @@ public class RoomController : ControllerBase
 	}
 
 	[HttpPost()]
+	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> AddRoom(RoomRequest roomRequest)
 	{
 		try
@@ -41,6 +43,7 @@ public class RoomController : ControllerBase
 	}
 
 	[HttpGet()]
+	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<List<RoomResponse>>> GetRooms()
 	{
 		List<Terem> rooms = await _db.Terems.ToListAsync();
@@ -48,6 +51,7 @@ public class RoomController : ControllerBase
 	}
 
 	[HttpGet("{id}")]
+	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> GetRoom(int id)
 	{
 		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
@@ -57,6 +61,7 @@ public class RoomController : ControllerBase
 	}
 
 	[HttpDelete("{id}")]
+	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult> DeleteRoom(int id)
 	{
 		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
@@ -68,6 +73,7 @@ public class RoomController : ControllerBase
 	}
 
 	[HttpPut("{id}")]
+	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> UpdateRoom(int id, RoomRequest roomRequest)
 	{
 		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);

@@ -1,6 +1,7 @@
 ﻿using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +20,7 @@ public class OrderController : ControllerBase
 
     
     [HttpGet]
+    [Authorize(Roles = "Admin, Cashier")]
     public async Task<ActionResult<List<OrderResponse>>> GetOrders()
     {
         List<Orders> orders = await _db.Orders

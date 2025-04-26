@@ -1,6 +1,7 @@
 ﻿using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,7 @@ namespace Backend.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ScreeningResponse>> AddScreening(ScreeningRequest screeningRequest)
         {
             try
@@ -81,6 +83,7 @@ namespace Backend.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteScreening(int id)
         {
             Screening screening = await _db.Screenings.FirstOrDefaultAsync(s => s.Id == id);
@@ -94,6 +97,7 @@ namespace Backend.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ScreeningResponse>> UpdateScreeening(int id, ScreeningRequest screeningRequest)
         {
 

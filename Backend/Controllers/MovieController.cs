@@ -37,7 +37,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<MovieRequest>> CreateMovie(MovieRequest movieRequest)
     {
         
@@ -50,7 +50,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<MovieResponse>> UpdateMovie(int id, MovieRequest movie) 
     {
        
@@ -74,7 +74,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult> DeleteMovie(int id) //DELETEMOVIE
     {
         var movie = await _db.Movies.FindAsync(id);
@@ -86,8 +86,4 @@ public class MovieController : ControllerBase
 
         return Ok();
     }
-    
- 
-
-  
 }
