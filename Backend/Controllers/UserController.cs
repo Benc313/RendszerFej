@@ -1,4 +1,4 @@
-﻿using Backend.Messages;
+﻿using Backend.Messages; 
 using Backend.Model;
 using expenseTracker.Data;
 using expenseTracker.Validators;
@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity.Data;
 using ValidationResult = FluentValidation.Results.ValidationResult;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Backend.Controllers
 {
@@ -21,6 +22,29 @@ namespace Backend.Controllers
         {
             _db = db;
         }
+
+        // ÚJ VÉGPONT: Bejelentkezett felhasználó adatainak lekérése
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<MeResponse>> GetCurrentUser() // Visszatérési típus MeResponse
+        {
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token or user ID not found." } });
+            }
+
+            var user = await _db.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Unauthorized(new { Errors = new List<string> { "User not found." } });
+            }
+
+          
+            return Ok(new MeResponse(user));
+        }
+
 
         [HttpPut("user/{id}")]      //közel sincs kész, nem lehet ellenőrizni, hogy a felhasználó a saját profilját szerkeszti-e jwt nélkül (elvileg)
         public async Task<ActionResult> UpdateUser(int id, UserRequest user)
@@ -86,3 +110,24 @@ namespace Backend.Controllers
         }
     }
 }
+
+// ÚJ DTO (pl. a Messages mappában)
+// namespace Backend.Messages;
+// public class MeResponse
+// {
+//     public int Id { get; set; }
+//     public string Name { get; set; }
+//     public string Email { get; set; }
+//     public string Role { get; set; }
+//     public string Phone { get; set; } // Opcionális, ha kell a frontendnek
+//     // BannedTill, stb. ha szükséges
+
+//     public MeResponse(Users user)
+//     {
+//         Id = user.Id;
+//         Name = user.Name;
+//         Email = user.Email;
+//         Role = user.Role;
+//         Phone = user.Phone;
+//     }
+// }
