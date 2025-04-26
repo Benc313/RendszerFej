@@ -76,7 +76,7 @@ namespace Backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." + ex.Message } });
+                return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later."  } });
             }
         }
 
@@ -106,7 +106,7 @@ namespace Backend.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<ScreeningResponse>> UpdateScreeening(int id, ScreeningRequest screeningRequest)
+        public async Task<ActionResult<ScreeningResponse>> UpdateScreening(int id, ScreeningRequest screeningRequest)
         {
             if (screeningRequest.Price < 0)
             {
