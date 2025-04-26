@@ -36,8 +36,6 @@ namespace Backend.Controllers
         {
             try
             {
-                //itt meg lehetne oldani, hogy string be jöjjön be a screeningtime, és valahol itt konvertáljuk datetime-ba,
-                //- egyenlőre azt feltételezi a kód hogy datetime-ot kap!
                 if (!await _db.Terems.AnyAsync(t => t.Room == screeningRequest.TeremName))
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
@@ -46,19 +44,26 @@ namespace Backend.Controllers
                 {
                     return BadRequest(new { Errors = new List<string> { "No valid Movie title was used!" } });
                 }
-                Screening asd = new Screening
+
+                var room = await _db.Terems.FirstAsync(m => m.Room == screeningRequest.TeremName);
+                if (room.Seats <= 0)
+                {
+                    return BadRequest(new { Errors = new List<string> { "Room must have available seats" } });
+                }
+
+                Screening screening = new Screening
                 {
                     ScreeningDate = screeningRequest.ScreeningDate,
                     Tickets = new List<Ticket>(),
-                    Terem = _db.Terems.First(m => m.Room == screeningRequest.TeremName),
+                    Terem = room,
                     Movie = _db.Movies.First(m => m.Title == screeningRequest.MovieTitle),
-
+                    Price = screeningRequest.Price
                 };
 
-                _db.Screenings.Add(asd);
+                _db.Screenings.Add(screening);
 
                 await _db.SaveChangesAsync();
-                return Ok(new ScreeningResponse(asd));
+                return Ok(new ScreeningResponse(screening));
             }
             catch (DbUpdateException ex)
             {
@@ -92,8 +97,6 @@ namespace Backend.Controllers
             _db.Screenings.Remove(screening);
             await _db.SaveChangesAsync();
             return Ok();
-            //Ide még nagyon kéne hogy a program mit csinál a jegyekkel, küld e emailt a jeggyel rendelkezőknek, stb!!!!!4!4!!@EVERYONE!!FONTOS 
-            //ehhez én nem értek c': 
         }
 
         [HttpPut("{id}")]

@@ -36,27 +36,32 @@ public class OrderController : ControllerBase
     {
         try
         {
-           
             if (orderRequest.Tickets == null || !orderRequest.Tickets.Any())
                 return BadRequest(new { Errors = new List<string> { "No tickets in order" } });
 
-          
             Users? user = null;
             if (orderRequest.UserId.HasValue)
             {
                 user = await _db.Users.FirstOrDefaultAsync(u => u.Id == orderRequest.UserId);
             }
 
-           
             var order = new Orders(orderRequest, user);
             _db.Orders.Add(order);
 
-          
             foreach (var ticketRequest in orderRequest.Tickets)
             {
-                var screening = await _db.Screenings.FindAsync(ticketRequest.ScreeningId);
+                var screening = await _db.Screenings
+                    .Include(s => s.Tickets)
+                    .FirstOrDefaultAsync(s => s.Id == ticketRequest.ScreeningId);
+
                 if (screening == null)
                     return BadRequest(new { Errors = new List<string> { $"Screening with ID {ticketRequest.ScreeningId} not found" } });
+
+                if (screening.Tickets.Any(t => t.SeatNumber == ticketRequest.SeatNumber))
+                    return BadRequest(new { Errors = new List<string> { $"Seat {ticketRequest.SeatNumber} is already taken for screening {ticketRequest.ScreeningId}" } });
+
+                if (screening.ScreeningDate <= DateTime.Now)
+                    return BadRequest(new { Errors = new List<string> { "Cannot purchase tickets for past screenings" } });
 
                 var ticket = new Ticket
                 {
@@ -64,14 +69,13 @@ public class OrderController : ControllerBase
                     ScreeningId = ticketRequest.ScreeningId,
                     Status = "Purchased",
                     Order = order,
-                    Price = screening.Price 
+                    Price = screening.Price
                 };
 
                 order.Tickets.Add(ticket);
                 order.TotalPrice += ticket.Price;
             }
 
-           
             await _db.SaveChangesAsync();
 
             return Ok(new OrderResponse(order));
@@ -89,15 +93,15 @@ public class OrderController : ControllerBase
             .Include(o => o.Tickets)
             .ThenInclude(t => t.Screening)
             .FirstOrDefaultAsync(o => o.Id == id);
-    
+
         if (order == null)
             return NotFound();
-        
+
         if (order.Tickets.Any(t => t.Screening.ScreeningDate <= DateTime.Now.AddHours(4)))
             return BadRequest(new { Errors = new List<string> { "Cannot cancel order within 4 hours of screening" } });
 
         _db.Orders.Remove(order);
-        
+
         await _db.SaveChangesAsync();
         return Ok();
     }

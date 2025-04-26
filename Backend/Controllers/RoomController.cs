@@ -28,13 +28,19 @@ public class RoomController : ControllerBase
 			{
 				return BadRequest(new { Errors = new List<string> { "Room already exists" } });
 			}
+
+			if (roomRequest.Seats <= 0)
+			{
+				return BadRequest(new { Errors = new List<string> { "Room must have a positive number of seats" } });
+			}
+
 			_db.Terems.Add(new Terem(roomRequest));
 			await _db.SaveChangesAsync();
 			return Ok();
 		}
 		catch (DbUpdateException ex)
 		{
-			return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the user. Please try again later." } });
+			return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the room. Please try again later." } });
 		}
 		catch (Exception ex)
 		{
