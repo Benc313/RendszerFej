@@ -1,134 +1,113 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { TextInput, PasswordInput, Button, Paper, Title, Container, Alert, Group } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { TextInput, PasswordInput, Button, Box, Title, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 import { apiCall } from '../services/api';
 
-// Backend által várt RegisterRequest struktúra
-interface RegisterRequest {
-    name: string;
-    email: string;
-    phoneNumber: string; // Backend ezt várja
-    password: string;
-}
-
-// Az űrlaphoz használt értékek (tartalmazza a confirmPassword-öt is)
-interface RegisterFormValues {
-    name: string;
-    email: string;
-    phone: string; // Ez van az űrlapon
-    password: string;
-    confirmPassword: string;
-}
-
 function RegisterPage() {
-    const navigate = useNavigate();
     const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
 
-    const form = useForm<RegisterFormValues>({
+    const form = useForm({
         initialValues: {
             name: '',
             email: '',
-            phone: '', // Űrlapon 'phone'
+            phoneNumber: '',
             password: '',
             confirmPassword: '',
         },
         validate: {
-            name: (value) => (value.trim().length < 2 ? 'Name must have at least 2 letters' : null),
+            name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
             email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-            phone: (value) => (value.trim().length < 6 ? 'Phone number seems too short' : null), // Alap validáció
-            password: (value) => (value.length < 6 ? 'Password should include at least 6 characters' : null),
+            phoneNumber: (value) => (value.trim().length >= 6 ? null : 'Phone number seems too short'), // Basic check
+            password: (value) => (value.length >= 6 ? null : 'Password must be at least 6 characters'),
             confirmPassword: (value, values) =>
-                value !== values.password ? 'Passwords did not match' : null,
+                value === values.password ? null : 'Passwords do not match',
         },
     });
 
-    const handleSubmit = async (values: RegisterFormValues) => {
+    const handleSubmit = async (values: typeof form.values) => {
         setError(null);
-        setSuccess(false);
-        // A confirmPassword itt szándékosan nincs használva a destrukturálás után
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { confirmPassword, phone, ...restValues } = values; // ESLint figyelmeztetés kikapcsolása a confirmPassword-re
-        const registerData: RegisterRequest = {
-            ...restValues,
-            phoneNumber: phone, // Átalakítás phoneNumber-ré
-        };
-
+        setIsLoading(true);
         try {
-            // A backend Ok()-t ad vissza tartalom nélkül (void)
+            // Exclude confirmPassword from the data sent to the backend
+            const { confirmPassword, ...registerData } = values;
             await apiCall<void>('/register', {
                 method: 'POST',
                 data: registerData,
             });
-            setSuccess(true);
-            setTimeout(() => navigate('/login'), 2000); // Átirányítás loginra siker után
+            // On successful registration, navigate to the login page
+            navigate('/login');
+            // Optionally show a success message before navigating
+            // alert('Registration successful! Please log in.');
         } catch (err) {
-             // Hiba kezelése Error objektumként
-             const errorMessage = (err instanceof Error) ? err.message : "An unexpected error occurred during registration.";
-             setError(errorMessage);
-             console.error("Registration error:", err);
+            setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     return (
-        <Box maw={340} mx="auto">
-            <Title order={2} ta="center" mt="md" mb="xl">
+        <Container size={420} my={40}>
+            <Title ta="center">
                 Register
             </Title>
-            {error && (
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Registration Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
-                    {error}
-                </Alert>
-            )}
-             {success && (
-                <Alert color="green" title="Registration Successful" mb="md">
-                    You can now log in. Redirecting...
-                </Alert>
-            )}
-            {!success && ( // Form csak akkor jelenik meg, ha nem volt sikeres a regisztráció
+
+            <Paper withBorder shadow="md" p={30} mt={30} radius="md">
                 <form onSubmit={form.onSubmit(handleSubmit)}>
+                    {error && (
+                        <Alert icon={<IconAlertCircle size="1rem" />} title="Registration Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
+                            {error}
+                        </Alert>
+                    )}
                     <TextInput
                         label="Name"
-                        placeholder="Your Name"
+                        placeholder="Your name"
                         required
                         {...form.getInputProps('name')}
+                        mb="sm"
                     />
                     <TextInput
                         label="Email"
-                        placeholder="your@email.com"
+                        placeholder="you@mantine.dev"
                         required
-                        mt="md"
                         {...form.getInputProps('email')}
+                        mb="sm"
                     />
-                    <TextInput
+                     <TextInput
                         label="Phone Number"
-                        placeholder="+36 20 123 4567"
+                        placeholder="+36..."
                         required
-                        mt="md"
-                        {...form.getInputProps('phone')} // Az űrlapon 'phone' marad
+                        {...form.getInputProps('phoneNumber')}
+                        mb="sm"
                     />
                     <PasswordInput
                         label="Password"
                         placeholder="Your password"
                         required
-                        mt="md"
                         {...form.getInputProps('password')}
+                        mb="sm"
                     />
                     <PasswordInput
                         label="Confirm Password"
                         placeholder="Confirm password"
                         required
-                        mt="md"
                         {...form.getInputProps('confirmPassword')}
+                        mb="lg"
                     />
-                    <Button type="submit" fullWidth mt="xl">
-                        Register
-                    </Button>
+                    <Group justify="space-between" mt="lg">
+                         <Button onClick={() => navigate('/login')} variant="subtle" size="xs">
+                            Already have an account? Login
+                        </Button>
+                        <Button type="submit" loading={isLoading}>
+                            Register
+                        </Button>
+                    </Group>
                 </form>
-            )}
-        </Box>
+            </Paper>
+        </Container>
     );
 }
 

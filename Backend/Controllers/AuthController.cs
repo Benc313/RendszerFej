@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Backend.Messages;
 using Backend.Model;
@@ -57,12 +58,19 @@ public class AuthController : ControllerBase
 	[HttpPost("login")]
 	public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
 	{
-		Users user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
+		Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email); // Use nullable type
 		if (user == null)
-			return BadRequest(new { Errors = new List<string> { "Invalid email or passworda" } });
+			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } }); // Corrected error message
 
 		if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
+
+        // Check if banned
+        if (user.BannedTill.HasValue && user.BannedTill.Value > DateTime.UtcNow)
+        {
+             return Unauthorized(new { Errors = new List<string> { $"User is banned until {user.BannedTill.Value}" } });
+        }
+
 		// Generate JWT token
 		var tokenHandler = new JwtSecurityTokenHandler();
 		var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]);
@@ -70,8 +78,8 @@ public class AuthController : ControllerBase
 		{
 			Subject = new System.Security.Claims.ClaimsIdentity(new[]
 			{
-				new System.Security.Claims.Claim("id", user.Id.ToString()),
-				new System.Security.Claims.Claim("role", user.Role)
+				new Claim("id", user.Id.ToString()),
+				new Claim("role", user.Role)
 			}),
 			Expires = DateTime.UtcNow.AddDays(1),
 			Issuer = _configuration["Jwt:Issuer"],
@@ -94,11 +102,11 @@ public class AuthController : ControllerBase
 	[HttpPost("logout")]
 	[Authorize] // Uncomment this line to require authentication
 	public async Task<ActionResult> Logout()
-	{
+    {
 		// Remove the token from the cookie
 		Response.Cookies.Delete("accessToken");
 		return Ok();
-	}
-	
-	
+    }
+
+
 }

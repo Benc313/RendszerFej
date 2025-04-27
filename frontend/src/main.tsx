@@ -1,20 +1,23 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { MantineProvider } from '@mantine/core';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom';
+import { MantineProvider } from '@mantine/core';
+import { Notifications } from '@mantine/notifications'; // Import
 import App from './App.tsx'
-import { AuthProvider } from './contexts/AuthContext'; // Importálva
-import '@mantine/core/styles.css';
+import { AuthProvider } from './contexts/AuthContext.tsx';
 import './index.css'
+import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css'; // Import notification styles
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MantineProvider>
-      <BrowserRouter>
-        <AuthProvider> {/* AuthProvider hozzáadva */}
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <MantineProvider>
+        <Notifications position="top-right" /> {/* Add Notifications provider */}
+        <AuthProvider>
           <App />
         </AuthProvider>
-      </BrowserRouter>
-    </MantineProvider>
-  </StrictMode>,
+      </MantineProvider>
+    </BrowserRouter>
+  </React.StrictMode>,
 )

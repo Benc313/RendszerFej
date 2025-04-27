@@ -2,15 +2,14 @@ using Backend.Model;
 
 namespace Backend.Messages;
 
-// DTO a bejelentkezett felhasználó adatainak visszaküldéséhez
-public class MeResponse
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public string Email { get; set; }
-    public string Role { get; set; }
-    public string Phone { get; set; }
-    public DateTime? BannedTill { get; set; } // Hozzáadva, ha szükséges a frontendnek
+    public class MeResponse
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; } // e.g., "User", "Admin", "Cashier"
+        public string? Phone { get; set; }
+        public DateTime? BannedTill { get; set; }
 
     public MeResponse(Users user)
     {
@@ -20,5 +19,5 @@ public class MeResponse
         Role = user.Role;
         Phone = user.Phone;
         BannedTill = user.BannedTill; // Hozzáadva
-    }
+   }
 }

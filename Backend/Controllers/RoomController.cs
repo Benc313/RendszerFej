@@ -60,7 +60,7 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> GetRoom(int id)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
 			return NotFound();
 		return Ok(new RoomResponse(room));
@@ -70,7 +70,7 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult> DeleteRoom(int id)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
 			return NotFound();
 		_db.Terems.Remove(room);
@@ -82,11 +82,22 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> UpdateRoom(int id, RoomRequest roomRequest)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
 			return NotFound();
+
+        
+        if (await _db.Terems.AnyAsync(r => r.Room == roomRequest.RoomName && r.Id != id))
+        {
+            return BadRequest(new { Errors = new List<string> { "Another room with this name already exists" } });
+        }
+         if (roomRequest.Seats <= 0)
+        {
+            return BadRequest(new { Errors = new List<string> { "Room must have a positive number of seats" } });
+        }
+
 		room.Update(roomRequest);
-		await _db.SaveChangesAsync();
-		return Ok(new RoomResponse(room));
+        await _db.SaveChangesAsync();
+        return Ok(new RoomResponse(room)); 
 	}
 }

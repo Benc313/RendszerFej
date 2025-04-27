@@ -1,18 +1,63 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: { // Hozzáadva a server konfiguráció
+  server: {
     proxy: {
-      // Az /api kezdetű kéréseket átirányítja a backendhez
+      // Az '/api' kezdetű kérések átirányítása a backendhez (UserController)
       '/api': {
-        target: 'https://localhost:7001', // Cseréld le a backend tényleges címére és portjára, ha szükséges
+        target: 'http://localhost:5196', // A backend címe
         changeOrigin: true,
-        secure: false, // Szükséges lehet, ha a backend self-signed certifikátot használ fejlesztéskor
-        rewrite: (path) => path.replace(/^\/api/, ''), // Eltávolítja az /api prefixet a backend felé menő kérésből
+        secure: false, // Fejlesztéshez, ha a backend HTTPS-t használna önaláírt tanúsítvánnyal
       },
-    },
-  },
+      // Külön proxy szabályok a gyökérben lévő végpontokhoz
+      '/register': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+      '/login': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+      '/logout': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/movies': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/screenings': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/orders': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/tickets': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/room': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      },
+       '/admin': {
+         target: 'http://localhost:5196',
+         changeOrigin: true,
+         secure: false,
+      }
+    }
+  }
 })

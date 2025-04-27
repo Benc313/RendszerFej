@@ -1,106 +1,111 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { TextInput, PasswordInput, Button, Paper, Title, Container, Alert, Group } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { TextInput, PasswordInput, Button, Box, Title, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { apiCall } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-// Backend által várt LoginRequest
-interface LoginRequest {
-    email: string;
-    password: string;
-}
-
-// Backend által ténylegesen küldött LoginResponse (lokálisan definiálva)
-interface ActualLoginResponse {
+// Interface matching the backend's LoginResponse DTO
+interface LoginResponse {
+    id: number;
     name: string;
     email: string;
+    role: 'Admin' | 'Cashier' | 'User';
+    phone: string;
+    bannedTill?: string | null; // Match the MeResponse/User interface used in AuthContext
 }
 
 
 function LoginPage() {
-    const navigate = useNavigate();
-    // setUserState eltávolítva, nincs rá szükség itt
-    const { checkAuthStatus } = useAuth();
     const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false); // Töltési állapot a gombhoz
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
+    const { setUserState } = useAuth(); // Get setUserState from context
 
-    const form = useForm<LoginRequest>({
+    const form = useForm({
         initialValues: {
             email: '',
             password: '',
         },
         validate: {
             email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-            password: (value) => (value.length < 6 ? 'Password should include at least 6 characters' : null), // Egyszerű validáció
+            password: (value) => (value.length > 0 ? null : 'Password is required'),
         },
     });
 
-    const handleSubmit = async (values: LoginRequest) => {
+    const handleSubmit = async (values: typeof form.values) => {
         setError(null);
-        setLoading(true); // Töltés indítása
+        setIsLoading(true);
         try {
-            // 1. Hívjuk a login végpontot. Ez csak beállítja a cookie-t.
-            // A válasz (ActualLoginResponse) itt nem létfontosságú a state frissítéséhez.
-            await apiCall<ActualLoginResponse>('/login', {
+            const loginResponse = await apiCall<LoginResponse>('/login', {
                 method: 'POST',
                 data: values,
             });
 
-            // 2. Sikeres login után hívjuk a checkAuthStatus-t, ami a /me végpontot hívja
-            // és beállítja a user state-et a kontextusban.
-            const user = await checkAuthStatus();
+            // Update the auth context with the user data from the response
+            // Convert bannedTill string to Date object if necessary
+            const userData = {
+                ...loginResponse,
+                bannedTill: loginResponse.bannedTill ? new Date(loginResponse.bannedTill) : null,
+            };
+            setUserState(userData);
 
-            if (user) {
-                // Opcionális: Közvetlenül is beállíthatnánk itt, de checkAuthStatus már megteszi
-                // setUserState(user);
-                navigate('/'); // Sikeres bejelentkezés és adatlekérés után főoldalra navigálás
+            // Navigate based on role
+            if (userData.role === 'Admin') {
+                navigate('/admin');
+            } else if (userData.role === 'Cashier') {
+                navigate('/cashier');
             } else {
-                // Ez nem szabadna megtörténjen, ha a login sikeres volt és a /me végpont jó
-                setError("Login succeeded but failed to fetch user data.");
+                navigate('/'); // Navigate to home page for regular users
             }
 
-        } catch (err) { // Javítva: any eltávolítva
-             // Hiba kezelése Error objektumként
-             const errorMessage = (err instanceof Error) ? err.message : "An unexpected error occurred.";
-             setError(errorMessage);
-             console.error("Login error:", err);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
+            setUserState(null); // Clear user state on login failure
         } finally {
-            setLoading(false); // Töltés befejezése
+            setIsLoading(false);
         }
     };
 
     return (
-        <Box maw={340} mx="auto">
-            <Title order={2} ta="center" mt="md" mb="xl">
+        <Container size={420} my={40}>
+            <Title ta="center">
                 Login
             </Title>
-            {error && (
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Login Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
-                    {error}
-                </Alert>
-            )}
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-                <TextInput
-                    label="Email"
-                    placeholder="your@email.com"
-                    required
-                    {...form.getInputProps('email')}
-                />
-                <PasswordInput
-                    label="Password"
-                    placeholder="Your password"
-                    required
-                    mt="md"
-                    {...form.getInputProps('password')}
-                />
-                {/* Gomb letiltása és loader mutatása töltés közben */}
-                <Button type="submit" fullWidth mt="xl" loading={loading}>
-                    Sign in
-                </Button>
-            </form>
-        </Box>
+
+            <Paper withBorder shadow="md" p={30} mt={30} radius="md">
+                <form onSubmit={form.onSubmit(handleSubmit)}>
+                    {error && (
+                        <Alert icon={<IconAlertCircle size="1rem" />} title="Login Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
+                            {error}
+                        </Alert>
+                    )}
+                    <TextInput
+                        label="Email"
+                        placeholder="you@mantine.dev"
+                        required
+                        {...form.getInputProps('email')}
+                        mb="sm"
+                    />
+                    <PasswordInput
+                        label="Password"
+                        placeholder="Your password"
+                        required
+                        {...form.getInputProps('password')}
+                        mb="lg"
+                    />
+                     <Group justify="space-between" mt="lg">
+                         <Button onClick={() => navigate('/register')} variant="subtle" size="xs">
+                            Don't have an account? Register
+                        </Button>
+                        <Button type="submit" loading={isLoading}>
+                            Login
+                        </Button>
+                    </Group>
+                </form>
+            </Paper>
+        </Container>
     );
 }
 

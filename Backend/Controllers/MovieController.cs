@@ -92,9 +92,7 @@ public class MovieController : ControllerBase
             return BadRequest(new { Error = "Cannot delete a movie with active screenings." });
 
         _db.Movies.Remove(movie);
-        await _db.SaveChangesAsync();
-
-        return Ok();
-
+        await _db.SaveChangesAsync(); // Add SaveChangesAsync
+        return Ok(new { Message = "Movie deleted successfully." }); // Add return Ok
     }
 }

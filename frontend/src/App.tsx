@@ -1,15 +1,17 @@
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom'; // Navigate hozzáadva
 import { AppShell, Burger, Group, Button, Text, NavLink } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from './contexts/AuthContext';
+import { Notifications } from '@mantine/notifications'; // Import Notifications
 // Oldalak importálása
-import LoginPage from './pages/LoginPage'; // Importálva
-import RegisterPage from './pages/RegisterPage'; // Importálva
-// import HomePage from './pages/HomePage'; // Később
-// import MoviesPage from './pages/MoviesPage'; // Később
-// import ProfilePage from './pages/ProfilePage'; // Később
-// import AdminDashboard from './pages/AdminDashboard'; // Később
-// import CashierDashboard from './pages/CashierDashboard'; // Később
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import HomePage from './pages/HomePage';
+import MoviesPage from './pages/MoviesPage';
+import MovieDetailsPage from './pages/MovieDetailsPage';
+import ProfilePage from './pages/ProfilePage'; // Később
+import AdminDashboard from './pages/AdminDashboard';
+import CashierDashboard from './pages/CashierDashboard'; // ÚJ: Importálva
 
 
 function App() {
@@ -17,12 +19,12 @@ function App() {
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Placeholder komponensek a még hiányzó oldalakhoz
-  const HomePage = () => <div>Home Page</div>;
-  const MoviesPage = () => <div>Movies Page</div>;
-  const ProfilePage = () => <div>Profile Page</div>;
-  const AdminDashboard = () => <div>Admin Dashboard</div>;
-  const CashierDashboard = () => <div>Cashier Dashboard</div>;
+  // Placeholder komponensek eltávolítása vagy átnevezése, ha ütköznek
+  // const HomePage = () => <div>Home Page</div>;
+  // const MoviesPage = () => <div>Movies Page</div>;
+  // const AdminDashboard = () => <div>Admin Dashboard</div>;
+  // const ProfilePage = () => <div>Profile Page</div>; // Ezt majd lecseréljük
+  // const CashierDashboard = () => <div>Cashier Dashboard</div>; // Eltávolítva, mert importáljuk
   const NotFoundPage = () => <div>404 Not Found</div>;
 
   const handleLogout = async () => {
@@ -40,6 +42,7 @@ function App() {
       navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="md"
     >
+      <Notifications /> {/* Add Notifications provider */}
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between"> {/* justify="space-between" hozzáadva */}
           <Group>
@@ -69,26 +72,39 @@ function App() {
 
          {/* Szerepkör-specifikus linkek */}
          {user?.role === 'Admin' && <NavLink component={Link} to="/admin" label="Admin Dashboard" onClick={toggle}/>}
-         {user?.role === 'Cashier' && <NavLink component={Link} to="/cashier" label="Cashier Dashboard" onClick={toggle}/>}
+         {/* Cashier link (Admin is láthatja) */}
+         {(user?.role === 'Cashier' || user?.role === 'Admin') && <NavLink component={Link} to="/cashier" label="Cashier Dashboard" onClick={toggle}/>}
 
-         {/* Ide jöhetnek a szerepkör-specifikus menüpontok */}
       </AppShell.Navbar>
 
       <AppShell.Main>
         <Routes>
+          {/* Használjuk az importált HomePage komponenst */}
           <Route path="/" element={<HomePage />} />
-          {/* Használjuk az új komponenseket */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/movies" element={<MoviesPage />} />
-          {/* Védett útvonalak (példa) */}
-          {/* <Route path="/profile" element={user ? <ProfilePage /> : <Navigate to="/login" />} /> */}
-          <Route path="/profile" element={<ProfilePage />} /> {/* Egyszerűsített, védelem nélkül egyelőre */}
-          {/* Szerepkör alapú útvonalak (példa) */}
-          {/* <Route path="/admin" element={user?.role === 'Admin' ? <AdminDashboard /> : <Navigate to="/" />} /> */}
-          {/* <Route path="/cashier" element={user?.role === 'Cashier' ? <CashierDashboard /> : <Navigate to="/" />} /> */}
-           <Route path="/admin" element={<AdminDashboard />} /> {/* Egyszerűsített */}
-           <Route path="/cashier" element={<CashierDashboard />} /> {/* Egyszerűsített */}
+          <Route path="/movies/:id" element={<MovieDetailsPage />} /> {/* ÚJ: Film részletek útvonal */}
+          {/* Védett útvonalak */}
+          <Route path="/profile" element={user ? <ProfilePage /> : <Navigate to="/login" replace />} /> {/* Védett útvonal */}
+          {/* Admin útvonal védelemmel */}
+         <Route
+            path="/admin"
+            element={
+              user?.role === 'Admin'
+                ? <AdminDashboard />
+                : <Navigate to={user ? "/" : "/login"} replace />
+            }
+          />
+          {/* Cashier útvonal védelemmel (Admin is elérheti) */}
+           <Route
+            path="/cashier"
+            element={
+              user?.role === 'Cashier' || user?.role === 'Admin'
+                ? <CashierDashboard /> // Itt használjuk az importált komponenst
+                : <Navigate to={user ? "/" : "/login"} replace />
+            }
+          />
 
           <Route path="*" element={<NotFoundPage />} /> {/* Minden másra 404 */}
         </Routes>

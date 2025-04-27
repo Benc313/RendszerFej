@@ -9,7 +9,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Authorize(Roles = "Admin")]
-[Route("/admin")]
+[Route("/admin")] 
 public class AdminController : ControllerBase
 {
     private readonly dbContext _db;
@@ -19,7 +19,7 @@ public class AdminController : ControllerBase
         _db = db;
     }
 
-    [HttpPost("admin/cashier")]
+    [HttpPost("cashier")] 
     public async Task<ActionResult> AddCashier( CashierRequest cashierRequest)
     {
         try
@@ -43,7 +43,7 @@ public class AdminController : ControllerBase
         }
     }
 
-    [HttpDelete("admin/user/{id}")]
+    [HttpDelete("user/{id}")] 
     public async Task<ActionResult> DeleteCashier(int id)
     {
         try

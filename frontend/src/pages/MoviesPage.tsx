@@ -1,0 +1,83 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { SimpleGrid, Card, Text, Title, Loader, Alert, Button } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
+import { apiCall } from '../services/api';
+
+// Backend AllMovieResponse alapján
+interface MovieSummary {
+    id: number;
+    title: string;
+    description: string;
+    duration: number; // Backend uint, itt number
+}
+
+function MoviesPage() {
+    const [movies, setMovies] = useState<MovieSummary[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchMovies = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const data = await apiCall<MovieSummary[]>('/movies');
+                setMovies(data);
+            } catch (err) {
+                const errorMessage = (err instanceof Error) ? err.message : "Failed to fetch movies.";
+                setError(errorMessage);
+                console.error("Error fetching movies:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchMovies();
+    }, []);
+
+    if (loading) {
+        return <Loader />; // Töltésjelző
+    }
+
+    if (error) {
+        return (
+            <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
+                {error}
+            </Alert>
+        );
+    }
+
+    return (
+        <div>
+            <Title order={2} mb="lg">Movies</Title>
+            {movies.length === 0 ? (
+                <Text>No movies available at the moment.</Text>
+            ) : (
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+                    {movies.map((movie) => (
+                        <Card shadow="sm" padding="lg" radius="md" withBorder key={movie.id}>
+                            <Title order={3}>{movie.title}</Title>
+                            <Text size="sm" c="dimmed" mt="xs">Duration: {movie.duration} minutes</Text>
+                            <Text mt="sm" lineClamp={3}>{movie.description}</Text>
+
+                            <Button
+                                component={Link}
+                                to={`/movies/${movie.id}`}
+                                variant="light"
+                                color="blue"
+                                fullWidth
+                                mt="md"
+                                radius="md"
+                            >
+                                View Details & Screenings
+                            </Button>
+                        </Card>
+                    ))}
+                </SimpleGrid>
+            )}
+        </div>
+    );
+}
+
+export default MoviesPage;
