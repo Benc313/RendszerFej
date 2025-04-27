@@ -43,13 +43,13 @@ public class AuthController : ControllerBase
 
 			_db.Users.Add(new Users(registerRequest));
 			await _db.SaveChangesAsync();
-			return Ok();
+			  return Ok(new { success = true, message = "Registration successful" });
 		}
-		catch (DbUpdateException ex)
+		catch (DbUpdateException)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the user. Please try again later." } });
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." } });
 		}
@@ -99,14 +99,21 @@ public class AuthController : ControllerBase
 		return Ok(new LoginResponse(user));
 	}
 	
-	[HttpPost("logout")]
-	[Authorize] // Uncomment this line to require authentication
-	public async Task<ActionResult> Logout()
-    {
-		// Remove the token from the cookie
-		Response.Cookies.Delete("accessToken");
-		return Ok();
-    }
+	 [HttpPost("logout")]
+	 [Authorize] // Require login to logout
+         public IActionResult Logout()
+         {
+             // Töröljük a HTTP-only cookie-t
+             Response.Cookies.Delete("accessToken", new CookieOptions
+             {
+                 HttpOnly = true,
+                 Secure = true, // Fontos production környezetben (HTTPS)
+                 SameSite = SameSiteMode.Strict // CSRF védelem
+                 // Domain és Path szükség szerint beállítandó, hogy biztosan törlődjön
+             });
+             // Adjunk vissza egyértelmű választ
+             return Ok(new { message = "Logout successful" });
+         }
 
 
 }

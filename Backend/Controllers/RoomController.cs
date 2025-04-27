@@ -34,9 +34,11 @@ public class RoomController : ControllerBase
 				return BadRequest(new { Errors = new List<string> { "Room must have a positive number of seats" } });
 			}
 
-			_db.Terems.Add(new Terem(roomRequest));
+			var newRoom = new Terem(roomRequest); // Store the new room
+			_db.Terems.Add(newRoom);
 			await _db.SaveChangesAsync();
-			return Ok();
+			// Return the created room details
+			return CreatedAtAction(nameof(GetRoom), new { id = newRoom.Id }, new RoomResponse(newRoom)); 
 		}
 		catch (DbUpdateException ex)
 		{

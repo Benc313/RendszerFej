@@ -10,6 +10,7 @@ using ValidationResult = FluentValidation.Results.ValidationResult;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Linq; // Add this for LINQ methods like Select
 
 namespace Backend.Controllers
 {
@@ -45,32 +46,89 @@ namespace Backend.Controllers
             return Ok(new MeResponse(user));
         }
 
-
-        [HttpPut("user/{id}")]      //közel sincs kész, nem lehet ellenőrizni, hogy a felhasználó a saját profilját szerkeszti-e jwt nélkül (elvileg)
-        public async Task<ActionResult> UpdateUser(int id, UserRequest user)
+        // ÚJ VÉGPONT: Bejelentkezett felhasználó rendeléseinek lekérése
+        [HttpGet("my-orders")]
+        [Authorize] // Csak bejelentkezett felhasználók érhetik el
+        public async Task<ActionResult<List<OrderResponse>>> GetMyOrders()
         {
-            if (/*id != user.Id*/ false)    //ide úgyis azt a userId-t fogjuk kapni, mint ami a jwt-ben van, vagymi
-                return BadRequest();
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token or user ID not found." } });
+            }
+
+            var orders = await _db.Orders
+                .Where(o => o.UserId == userId) // Csak az adott felhasználó rendelései
+                .Include(o => o.Tickets)
+                    .ThenInclude(t => t.Screening)
+                        .ThenInclude(s => s.Movie) // Include Movie details
+                .Include(o => o.Tickets)
+                    .ThenInclude(t => t.Screening)
+                        .ThenInclude(s => s.Terem) // Include Room details
+                .OrderByDescending(o => o.Id) // Legújabb elöl
+                .ToListAsync();
+
+            if (orders == null)
+            {
+                // Ha nincs rendelése, üres listát adunk vissza, nem hiba
+                return Ok(new List<OrderResponse>());
+            }
+
+            // Mappelés OrderResponse-ra
+            var orderResponses = orders.Select(o => new OrderResponse(o)).ToList();
+            return Ok(orderResponses);
+        }
+
+        [HttpPut("user/{id}")]
+        [Authorize] // Require authentication
+        public async Task<ActionResult> UpdateUser(int id, UserRequest userRequest) // Renamed parameter
+        {
+            // --- Authorization Check ---
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var currentUserId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token." } });
+            }
+
+            // Check if the user is trying to update their own profile
+            if (currentUserId != id)
+            {
+                // Allow Admins to update any user? Decide based on requirements.
+                // For now, only allow self-update.
+                 if (!User.IsInRole("Admin")) // Example: Allow Admins to bypass
+                 {
+                    return Forbid(); // User is not authorized to update this profile
+                 }
+            }
+            // --- End Authorization Check ---
 
             Users existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (existingUser == null)
                 return NotFound();
 
             UserUpdateValidator validator = new UserUpdateValidator(_db);
-            ValidationResult result = validator.Validate(user);
+            // Validate the incoming userRequest, not the existingUser
+            ValidationResult result = validator.Validate(userRequest);
             if (!result.IsValid)
                 return BadRequest(result.Errors.Select(x => x.ErrorMessage).ToList());
 
-            if (user.Name != null)
-                existingUser.Name = user.Name;
-            if(user.Email != null)
-                existingUser.Email = user.Email;
-            if(user.Phone != null)
-                existingUser.Phone = user.Phone;
-            if(user.Password != null)
-            existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            // Update fields only if they are provided in the request
+            if (!string.IsNullOrWhiteSpace(userRequest.Name))
+                existingUser.Name = userRequest.Name;
+            if (!string.IsNullOrWhiteSpace(userRequest.Email))
+            {
+                 // Check if email is changing and if it's already taken by another user
+                 if (userRequest.Email != existingUser.Email && await _db.Users.AnyAsync(u => u.Email == userRequest.Email && u.Id != id))
+                 {
+                     return BadRequest(new { Errors = new List<string> { "Email already in use by another account." } });
+                 }
+                existingUser.Email = userRequest.Email;
+            }
+            if (!string.IsNullOrWhiteSpace(userRequest.Phone))
+                existingUser.Phone = userRequest.Phone;
+            if (!string.IsNullOrWhiteSpace(userRequest.Password))
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
 
-            //_db.Entry(user).State = EntityState.Modified;     //ezt autofilll baszta ide, nem tudom mit jelent, de működink nélküle so \-*_*-/
             try
             {
                 await _db.SaveChangesAsync();
@@ -84,6 +142,7 @@ namespace Backend.Controllers
             }
             return NoContent();
         }
+
         [HttpDelete("user/{id}")]
         public async Task<ActionResult> DeleteUser(int id)
         {
