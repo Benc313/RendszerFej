@@ -25,9 +25,9 @@ function MoviesPage() {
                 const data = await apiCall<MovieSummary[]>('/movies');
                 setMovies(data);
             } catch (err) {
-                const errorMessage = (err instanceof Error) ? err.message : "Failed to fetch movies.";
+                const errorMessage = (err instanceof Error) ? err.message : "Nem sikerült lekérni a filmeket.";
                 setError(errorMessage);
-                console.error("Error fetching movies:", err);
+                console.error("Hiba a filmek lekérésekor:", err);
             } finally {
                 setLoading(false);
             }
@@ -42,7 +42,7 @@ function MoviesPage() {
 
     if (error) {
         return (
-            <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
+            <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red">
                 {error}
             </Alert>
         );
@@ -52,13 +52,13 @@ function MoviesPage() {
         <div>
             <Title order={2} mb="lg">Movies</Title>
             {movies.length === 0 ? (
-                <Text>No movies available at the moment.</Text>
+                <Text>Jelenleg nincsenek elérhető filmek.</Text>
             ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
                     {movies.map((movie) => (
                         <Card shadow="sm" padding="lg" radius="md" withBorder key={movie.id}>
                             <Title order={3}>{movie.title}</Title>
-                            <Text size="sm" c="dimmed" mt="xs">Duration: {movie.duration} minutes</Text>
+                            <Text size="sm" c="dimmed" mt="xs">Hossz: {movie.duration} perc</Text>
                             <Text mt="sm" lineClamp={3}>{movie.description}</Text>
 
                             <Button
@@ -70,7 +70,7 @@ function MoviesPage() {
                                 mt="md"
                                 radius="md"
                             >
-                                View Details & Screenings
+                                Részletek és Vetítések
                             </Button>
                         </Card>
                     ))}

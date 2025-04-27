@@ -6,14 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-// Interface matching the backend's LoginResponse DTO
+// Interface matching the backend's *updated* LoginResponse DTO (now same as MeResponse/User)
 interface LoginResponse {
     id: number;
     name: string;
     email: string;
     role: 'Admin' | 'Cashier' | 'User';
     phone: string;
-    bannedTill?: string | null; // Match the MeResponse/User interface used in AuthContext
+    bannedTill?: string | null; // Keep as string from backend JSON
 }
 
 
@@ -29,8 +29,8 @@ function LoginPage() {
             password: '',
         },
         validate: {
-            email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-            password: (value) => (value.length > 0 ? null : 'Password is required'),
+            email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Érvénytelen email cím'), 
+            password: (value) => (value.length > 0 ? null : 'A jelszó megadása kötelező'), 
         },
     });
 
@@ -38,30 +38,27 @@ function LoginPage() {
         setError(null);
         setIsLoading(true);
         try {
+            // This call now receives the full user object due to backend change
             const loginResponse = await apiCall<LoginResponse>('/login', {
                 method: 'POST',
                 data: values,
             });
 
-            // Update the auth context with the user data from the response
-            // Convert bannedTill string to Date object if necessary
-            const userData = {
-                ...loginResponse,
-                bannedTill: loginResponse.bannedTill ? new Date(loginResponse.bannedTill) : null,
-            };
-            setUserState(userData);
+            // Update the auth context - loginResponse now has all required fields (id, role, etc.)
+            // No need to convert bannedTill here if AuthContext handles string
+            setUserState(loginResponse); // Directly use the full response
 
-            // Navigate based on role
-            if (userData.role === 'Admin') {
+            // Navigate based on role - loginResponse.role is now available immediately
+            if (loginResponse.role === 'Admin') {
                 navigate('/admin');
-            } else if (userData.role === 'Cashier') {
+            } else if (loginResponse.role === 'Cashier') {
                 navigate('/cashier');
             } else {
                 navigate('/'); // Navigate to home page for regular users
             }
 
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
+            setError(err instanceof Error ? err.message : 'Sikertelen bejelentkezés. Kérjük, ellenőrizze adatait.');
             setUserState(null); // Clear user state on login failure
         } finally {
             setIsLoading(false);
@@ -71,36 +68,36 @@ function LoginPage() {
     return (
         <Container size={420} my={40}>
             <Title ta="center">
-                Login
+                Bejelentkezés 
             </Title>
 
             <Paper withBorder shadow="md" p={30} mt={30} radius="md">
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     {error && (
-                        <Alert icon={<IconAlertCircle size="1rem" />} title="Login Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
+                        <Alert icon={<IconAlertCircle size="1rem" />} title="Bejelentkezési Hiba" color="red" withCloseButton onClose={() => setError(null)} mb="md">
                             {error}
                         </Alert>
                     )}
                     <TextInput
-                        label="Email"
-                        placeholder="you@mantine.dev"
+                        label="Email" 
+                        placeholder="neved@email.com" 
                         required
                         {...form.getInputProps('email')}
                         mb="sm"
                     />
                     <PasswordInput
-                        label="Password"
-                        placeholder="Your password"
+                        label="Jelszó" 
+                        placeholder="Jelszavad" 
                         required
                         {...form.getInputProps('password')}
                         mb="lg"
                     />
                      <Group justify="space-between" mt="lg">
                          <Button onClick={() => navigate('/register')} variant="subtle" size="xs">
-                            Don't have an account? Register
+                            Nincs még fiókod? Regisztrálj 
                         </Button>
                         <Button type="submit" loading={isLoading}>
-                            Login
+                            Bejelentkezés 
                         </Button>
                     </Group>
                 </form>

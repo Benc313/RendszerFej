@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Loader, Alert, Title, Text, Paper, List, ThemeIcon, Button, Group, Modal, NumberInput, Box } from '@mantine/core';
-import { IconAlertCircle, IconCircleCheck, IconCalendar, IconClock, IconBuildingSkyscraper, IconCurrencyForint, IconArmchair } from '@tabler/icons-react';
+import { useParams } from 'react-router-dom';
+import { Loader, Alert, Title, Text, Paper, List, ThemeIcon, Button, Group, Modal, NumberInput, Box, TextInput } from '@mantine/core';
+import { IconAlertCircle, IconCircleCheck, IconCalendar, IconBuildingSkyscraper, IconCurrencyForint } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
 import { apiCall } from '../services/api';
@@ -18,6 +18,14 @@ interface Screening {
     // Itt a ScreeningResponse struktúrát használjuk, amit a /screenings végpont adna vissza,
     // de a /movies/{id} végpont Screening objektumokat ad vissza. Ezt backend oldalon egységesíteni kellene.
     // Addig is feltételezzük, hogy a szükséges adatok elérhetők.
+}
+
+interface MovieSummary {
+    id: number;
+    title: string;
+    duration: number;
+    description: string;
+    // ...esetleg további mezők...
 }
 
 interface MovieDetails extends MovieSummary { // MovieSummary az előző fájlból
@@ -62,9 +70,9 @@ function MovieDetailsPage() {
             phone: '', // Nem regisztrált felhasználónak
         },
         validate: {
-            seatNumber: (value) => (value <= 0 ? 'Seat number must be positive' : null),
-            email: (value, values) => (!user && !/^\S+@\S+$/.test(value) ? 'Invalid email required for guest purchase' : null),
-            phone: (value, values) => (!user && value.trim().length < 6 ? 'Phone number required for guest purchase' : null),
+            seatNumber: (value) => (value <= 0 ? 'A szék számának pozitívnak kell lennie' : null),
+            email: (value) => (!user && !/^\S+@\S+$/.test(value) ? 'Érvénytelen e-mail cím szükséges a vendég vásárláshoz' : null),
+            phone: (value) => (!user && value.trim().length < 6 ? 'Telefonszám szükséges a vendég vásárláshoz' : null),
         },
     });
 
@@ -80,9 +88,9 @@ function MovieDetailsPage() {
                 const data = await apiCall<MovieDetails>(`/movies/${id}`);
                 setMovie(data);
             } catch (err) {
-                const errorMessage = (err instanceof Error) ? err.message : "Failed to fetch movie details.";
+                const errorMessage = (err instanceof Error) ? err.message : "Nem sikerült lekérni a film részleteit.";
                 setError(errorMessage);
-                console.error("Error fetching movie details:", err);
+                console.error("Hiba a film részleteinek lekérésekor:", err);
             } finally {
                 setLoading(false);
             }
@@ -127,9 +135,9 @@ function MovieDetailsPage() {
             // Optionally close modal after a delay or keep it open to show success
             // setTimeout(close, 2000);
         } catch (err) {
-            const errorMessage = (err instanceof Error) ? err.message : "Failed to purchase ticket.";
+            const errorMessage = (err instanceof Error) ? err.message : "Nem sikerült a jegyvásárlás.";
             setOrderError(errorMessage);
-            console.error("Order error:", err);
+            console.error("Rendelési hiba:", err);
         }
     };
 
@@ -139,14 +147,14 @@ function MovieDetailsPage() {
 
     if (error) {
         return (
-            <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
+            <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red">
                 {error}
             </Alert>
         );
     }
 
     if (!movie) {
-        return <Text>Movie not found.</Text>;
+        return <Text>A film nem található.</Text>;
     }
 
     // Dátum formázása olvashatóbbra
@@ -160,10 +168,10 @@ function MovieDetailsPage() {
     return (
         <Paper shadow="xs" p="md">
             <Title order={2}>{movie.title}</Title>
-            <Text c="dimmed" size="sm">Duration: {movie.duration} minutes</Text>
+            <Text c="dimmed" size="sm">Hossz: {movie.duration} perc</Text>
             <Text mt="md">{movie.description}</Text>
 
-            <Title order={3} mt="xl" mb="md">Screenings</Title>
+            <Title order={3} mt="xl" mb="md">Vetítések</Title>
             {movie.screenings && movie.screenings.length > 0 ? (
                 <List
                     spacing="md"
@@ -183,37 +191,37 @@ function MovieDetailsPage() {
                                 <div>
                                     <Text fw={500}>{formatScreeningDate(screening.screeningDate)}</Text>
                                     <Text size="sm" c="dimmed">
-                                        <IconBuildingSkyscraper size="0.9rem" /> Room: {screening.room} | <IconCurrencyForint size="0.9rem" /> Price: {screening.price} Ft
+                                        <IconBuildingSkyscraper size="0.9rem" /> Terem: {screening.room} | <IconCurrencyForint size="0.9rem" /> Ár: {screening.price} Ft
                                     </Text>
                                 </div>
-                                <Button size="xs" onClick={() => handlePurchaseClick(screening)}>Buy Ticket</Button>
+                                <Button size="xs" onClick={() => handlePurchaseClick(screening)}>Jegyvásárlás</Button>
                             </Group>
                         </List.Item>
                     ))}
                 </List>
             ) : (
-                <Text>No screenings available for this movie yet.</Text>
+                <Text>Ehhez a filmhez még nincsenek elérhető vetítések.</Text>
             )}
 
             {/* Jegyvásárlási Modális Ablak */}
-            <Modal opened={opened} onClose={close} title={`Buy Ticket for ${movie.title}`} centered>
+            <Modal opened={opened} onClose={close} title={`Jegyvásárlás - ${movie.title}`} centered>
                 {orderSuccess ? (
-                    <Alert icon={<IconCircleCheck size="1rem" />} title="Purchase Successful!" color="green">
-                        Order ID: {orderSuccess.id}, Total Price: {orderSuccess.totalPrice} Ft.
+                    <Alert icon={<IconCircleCheck size="1rem" />} title="Sikeres vásárlás!" color="green">
+                        Rendelés azonosító: {orderSuccess.id}, Teljes ár: {orderSuccess.totalPrice} Ft.
                     </Alert>
                 ) : (
                     <Box component="form" onSubmit={form.onSubmit(handleConfirmPurchase)}>
                         {selectedScreening && (
                             <>
-                                <Text>Screening: {formatScreeningDate(selectedScreening.screeningDate)}</Text>
-                                <Text>Room: {selectedScreening.room}</Text>
-                                <Text mb="md">Price: {selectedScreening.price} Ft</Text>
+                                <Text>Vetítés: {formatScreeningDate(selectedScreening.screeningDate)}</Text>
+                                <Text>Terem: {selectedScreening.room}</Text>
+                                <Text mb="md">Ár: {selectedScreening.price} Ft</Text>
                             </>
                         )}
 
                         <NumberInput
-                            label="Seat Number"
-                            placeholder="Enter seat number"
+                            label="Szék száma"
+                            placeholder="Adja meg a szék számát"
                             min={1}
                             required
                             {...form.getInputProps('seatNumber')}
@@ -222,14 +230,14 @@ function MovieDetailsPage() {
                         {!user && (
                             <>
                                 <TextInput
-                                    label="Email (for guest purchase)"
-                                    placeholder="your@email.com"
+                                    label="E-mail cím (vendég vásárláshoz)"
+                                    placeholder="nev@email.com"
                                     required
                                     mt="md"
                                     {...form.getInputProps('email')}
                                 />
                                 <TextInput
-                                    label="Phone Number (for guest purchase)"
+                                    label="Telefonszám (vendég vásárláshoz)"
                                     placeholder="+36..."
                                     required
                                     mt="md"
@@ -239,14 +247,14 @@ function MovieDetailsPage() {
                         )}
 
                         {orderError && (
-                            <Alert icon={<IconAlertCircle size="1rem" />} title="Purchase Error" color="red" mt="md">
+                            <Alert icon={<IconAlertCircle size="1rem" />} title="Vásárlási hiba" color="red" mt="md">
                                 {orderError}
                             </Alert>
                         )}
 
                         <Group justify="flex-end" mt="xl">
-                            <Button variant="default" onClick={close}>Cancel</Button>
-                            <Button type="submit">Confirm Purchase</Button>
+                            <Button variant="default" onClick={close}>Mégse</Button>
+                            <Button type="submit">Vásárlás megerősítése</Button>
                         </Group>
                     </Box>
                 )}

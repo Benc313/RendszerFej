@@ -17,6 +17,8 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
+    // Add login function signature
+    login: (email: string, password: string) => Promise<User>; // Returns the logged-in user on success
     logout: () => Promise<void>;
     checkAuthStatus: () => Promise<User | null>; // Visszaadja a usert vagy null-t
     setUserState: (user: User | null) => void; // Közvetlen user beállítás (pl. login után)
@@ -49,6 +51,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         */
         setUser(userData);
     }, []);
+
+    // --- Login Function Implementation ---
+    const login = useCallback(async (email: string, password: string): Promise<User> => {
+        console.log("Attempting login...");
+        // No need to setIsLoading(true) here, as apiCall handles its own logic,
+        // and checkAuthStatus might be called after, which sets loading.
+        try {
+            // Call the /login endpoint using apiCall
+            // The backend LoginResponse structure matches the User interface
+            const loggedInUser = await apiCall<User>('/login', {
+                method: 'POST',
+                data: { email, password },
+            });
+            console.log("Login API call successful via apiCall, user:", loggedInUser);
+            setUserState(loggedInUser); // Update the user state immediately
+            // Optionally, call checkAuthStatus again to be absolutely sure, but setUserState might be enough
+            // await checkAuthStatus();
+            return loggedInUser; // Return the user data on success
+        } catch (error) {
+            // apiCall already handles error logging and notifications
+            console.error("Login failed in AuthContext:", error);
+            setUserState(null); // Ensure user state is null on login failure
+            // Re-throw the error so the calling component (LoginPage) can catch it if needed
+            throw error;
+        }
+        // No finally block needed here to set loading to false, handled by checkAuthStatus or initial load
+    }, [setUserState]); // Add setUserState as dependency
 
     // Kijelentkezés
     const logout = useCallback(async () => {
@@ -93,7 +122,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [checkAuthStatus]);
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, logout, checkAuthStatus, setUserState }}>
+        // Add login to the context value
+        <AuthContext.Provider value={{ user, isLoading, login, logout, checkAuthStatus, setUserState }}>
             {children}
         </AuthContext.Provider>
     );

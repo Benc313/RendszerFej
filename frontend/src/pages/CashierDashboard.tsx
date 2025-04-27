@@ -1,169 +1,333 @@
 // Filepath: c:\Users\Ati\source\repos\RendszerFej\frontend\src\pages\CashierDashboard.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, Tabs, NumberInput, Box } from '@mantine/core';
-import { IconAlertCircle, IconTicket, IconListDetails, IconShoppingCartPlus } from '@tabler/icons-react';
+// Select, Radio, Stack hozzáadva az importokhoz
+import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, Tabs, NumberInput, Box, List, Select, Radio, Stack } from '@mantine/core';
+import { IconAlertCircle, IconTicket, IconListDetails, IconShoppingCartPlus, IconCheck } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 
-// --- Order Interface (based on OrderResponse) ---
+// --- Rendelés Interfész (OrderResponse alapján) ---
 interface OrderData {
     id: number;
-    phone?: string | null;
-    email?: string | null;
-    userId?: number | null;
-    totalPrice: number;
-    tickets: TicketData[];
+    phone?: string | null; // Telefonszám (opcionális)
+    email?: string | null; // Email cím (opcionális)
+    userId?: number | null; // Felhasználó ID (opcionális, ha regisztrált)
+    totalPrice: number; // Teljes ár
+    tickets: TicketData[]; // Jegyek listája
 }
 
-// --- Ticket Interface (based on TicketResponse) ---
+// --- Jegy Interfész (TicketResponse alapján) ---
 interface TicketData {
     id: number;
-    seatNumber: number;
-    price: number;
-    status: string;
-    screeningId: number;
+    seatNumber: number; // Ülésszám
+    price: number; // Jegyár
+    status: string; // Jegy státusza (pl. "VALIDATED", "ACTIVE")
+    screeningId: number; // Vetítés ID
 }
 
-// --- Ticket Validation Form ---
+// --- Jegyérvényesítő Űrlap Interfész ---
 interface ValidateTicketForm {
-    ticketId: number | '';
+    ticketId: number | ''; // Jegy ID (lehet üres string a NumberInput miatt)
+}
+
+// --- Vetítés Interfész (ScreeningResponse alapján, egyszerűsítve a dropdownhoz) ---
+interface ScreeningOption {
+    id: number;
+    movieTitle: string;
+    roomName: string;
+    screeningDate: string; // ISO string
+    price: number;
+}
+
+// --- Vásárlási Űrlap Interfész ---
+interface PurchaseFormValues {
+    screeningId: string | null; // Vetítés ID (Select stringet ad vissza)
+    seatNumber: number | ''; // Ülésszám
+    purchaseType: 'guest' | 'user'; // Vásárló típusa
+    userId: number | ''; // Felhasználó ID (ha purchaseType === 'user')
+    email: string; // Email (ha purchaseType === 'guest')
+    phone: string; // Telefon (ha purchaseType === 'guest')
 }
 
 function CashierDashboard() {
-    const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<string | null>('validate');
+    const { user } = useAuth(); // Bejelentkezett felhasználó adatai
+    const [activeTab, setActiveTab] = useState<string | null>('validate'); // Aktív fül állapota
 
-    // --- State for Ticket Validation ---
-    const [validationLoading, setValidationLoading] = useState(false);
-    const [validationError, setValidationError] = useState<string | null>(null);
-    const [validationSuccess, setValidationSuccess] = useState<string | null>(null);
+    // --- Jegyérvényesítés Állapotai ---
+    const [validationLoading, setValidationLoading] = useState(false); // Érvényesítés folyamatban
+    const [validationError, setValidationError] = useState<string | null>(null); // Hiba az érvényesítés során
+    // const [validationSuccess, setValidationSuccess] = useState<string | null>(null); // Sikeres üzenet helyett notification használata
 
-    // --- State for Orders ---
-    const [orders, setOrders] = useState<OrderData[]>([]);
-    const [ordersLoading, setOrdersLoading] = useState(false);
-    const [ordersError, setOrdersError] = useState<string | null>(null);
+    // --- Rendelések Állapotai ---
+    const [orders, setOrders] = useState<OrderData[]>([]); // Rendelések listája
+    const [ordersLoading, setOrdersLoading] = useState(false); // Rendelések betöltése folyamatban
+    const [ordersError, setOrdersError] = useState<string | null>(null); // Hiba a rendelések betöltésekor
 
-    // --- Forms ---
+    // --- Vetítések Állapotai (Vásárláshoz) ---
+    const [screenings, setScreenings] = useState<ScreeningOption[]>([]); // Elérhető vetítések listája
+    const [screeningsLoading, setScreeningsLoading] = useState(false); // Vetítések betöltése folyamatban
+    const [screeningsError, setScreeningsError] = useState<string | null>(null); // Hiba a vetítések betöltésekor
+
+    // --- Vásárlás Állapotai ---
+    const [purchaseLoading, setPurchaseLoading] = useState(false); // Vásárlás folyamatban
+    const [purchaseError, setPurchaseError] = useState<string | null>(null); // Hiba a vásárlás során
+
+    // --- Űrlapok Kezelése (useForm Hook) ---
+    // Jegyérvényesítő űrlap
     const validationForm = useForm<ValidateTicketForm>({
         initialValues: { ticketId: '' },
         validate: {
-            ticketId: (value) => (value !== '' && value > 0 ? null : 'Valid Ticket ID is required'),
+            ticketId: (value) => (value !== '' && value > 0 ? null : 'Érvényes Jegy ID megadása kötelező'),
         },
     });
 
-    // --- Data Fetching ---
+    // Vásárlási űrlap
+    const purchaseForm = useForm<PurchaseFormValues>({
+        initialValues: {
+            screeningId: null,
+            seatNumber: '',
+            purchaseType: 'guest', // Alapértelmezett a vendég vásárlás
+            userId: '',
+            email: '',
+            phone: '',
+        },
+        validate: (values) => ({
+            screeningId: values.screeningId ? null : 'Vetítés kiválasztása kötelező',
+            seatNumber: values.seatNumber !== '' && values.seatNumber > 0 ? null : 'Érvényes ülésszám megadása kötelező',
+            // Feltételes validáció
+            userId: values.purchaseType === 'user' && (values.userId === '' || values.userId <= 0) ? 'Érvényes Felhasználó ID megadása kötelező' : null,
+            email: values.purchaseType === 'guest' && !/^\S+@\S+$/.test(values.email) ? 'Érvénytelen email cím' : null,
+            phone: values.purchaseType === 'guest' && values.phone.trim().length < 6 ? 'Telefonszám megadása kötelező (min. 6 karakter)' : null,
+        }),
+    });
+
+    // --- Adatlekérdezések ---
+    // Rendelések lekérdezése
     const fetchOrders = useCallback(async () => {
         setOrdersLoading(true);
         setOrdersError(null);
         try {
+            // GET kérés a /orders végpontra
             const data = await apiCall<OrderData[]>('/orders');
             setOrders(data);
         } catch (err) {
-            setOrdersError(err instanceof Error ? err.message : "Failed to fetch orders.");
+            setOrdersError(err instanceof Error ? err.message : "Rendelések lekérdezése sikertelen.");
         } finally {
             setOrdersLoading(false);
         }
     }, []);
 
-    // --- Handlers ---
+    // Vetítések lekérdezése (Vásárláshoz)
+    const fetchScreenings = useCallback(async () => {
+        setScreeningsLoading(true);
+        setScreeningsError(null);
+        try {
+            // Backend válasz (BackendScreeningResponse) lekérdezése
+            // Figyelem: A BackendScreeningResponse struktúrát használjuk itt is, mint az AdminDashboardban
+            interface BackendScreeningResponse {
+                id: number;
+                screeningDate: string;
+                price: number;
+                movie?: { id: number; title: string; description: string; duration: number; }; // Movie lehet opcionális
+                terem?: { id: number; roomName: string; seats: number; }; // Terem lehet opcionális
+            }
+            const data = await apiCall<BackendScreeningResponse[]>('/screenings');
+            // Átalakítás a frontend Select komponenshez és állapothoz (ScreeningOption)
+            // Szűrés és biztonságos hozzáférés
+            const options: ScreeningOption[] = data
+                .filter(s => s.movie && s.terem) // Csak azokat tartjuk meg, ahol van film és terem adat
+                .map(s => ({
+                    id: s.id,
+                    movieTitle: s.movie!.title, // Biztosak lehetünk benne, hogy létezik a filter miatt
+                    roomName: s.terem!.roomName, // Biztosak lehetünk benne, hogy létezik a filter miatt
+                    screeningDate: s.screeningDate,
+                    price: s.price,
+                }));
+            setScreenings(options);
+        } catch (err) {
+            setScreeningsError(err instanceof Error ? err.message : "Vetítések lekérdezése sikertelen.");
+        } finally {
+            setScreeningsLoading(false);
+        }
+    }, []);
+
+    // --- Eseménykezelők ---
+    // Jegy érvényesítése
     const handleValidateTicket = async (values: ValidateTicketForm) => {
         setValidationLoading(true);
         setValidationError(null);
-        setValidationSuccess(null);
+        // setValidationSuccess(null); // Felesleges, notificationt használunk
         try {
+            // GET kérés a /tickets/validate/{id} végpontra
             const response = await apiCall<{ message: string }>(`/tickets/validate/${values.ticketId}`, {
-                method: 'GET', // Backend uses GET for validation
+                method: 'GET',
             });
-            setValidationSuccess(response.message || `Ticket ${values.ticketId} validated successfully.`);
-            validationForm.reset();
-            // Optionally refetch orders if status change needs to be reflected immediately
+            notifications.show({ // Sikeres érvényesítés értesítés
+                title: 'Jegy érvényesítve',
+                message: response.message || `A(z) ${values.ticketId} ID-jű jegy sikeresen érvényesítve.`,
+                color: 'green',
+                icon: <IconCheck size={16} />
+            });
+            validationForm.reset(); // Űrlap ürítése
+            // Opcionálisan frissítjük a rendelések listáját, ha az "orders" fül aktív
             if (activeTab === 'orders') await fetchOrders();
         } catch (err) {
-            setValidationError(err instanceof Error ? err.message : `Failed to validate ticket ${values.ticketId}.`);
+            setValidationError(err instanceof Error ? err.message : `A(z) ${values.ticketId} ID-jű jegy érvényesítése sikertelen.`);
         } finally {
             setValidationLoading(false);
         }
     };
 
-    // --- Effects ---
-    React.useEffect(() => {
-        if (activeTab === 'orders') {
-            fetchOrders();
+    // Jegyvásárlás kezelése
+    const handlePurchase = async (values: PurchaseFormValues) => {
+        setPurchaseLoading(true);
+        setPurchaseError(null);
+
+        // Backend kérés összeállítása (OrderRequest alapján)
+        const orderRequest = {
+            // Vagy userId, vagy email/phone
+            ...(values.purchaseType === 'user' ? { userId: Number(values.userId) } : { email: values.email, phone: values.phone }),
+            // Jegyek listája (egyelőre csak egy jeggyel)
+            tickets: [
+                {
+                    screeningId: Number(values.screeningId), // String -> Number
+                    seatNumber: Number(values.seatNumber),   // String/Number -> Number
+                },
+            ],
+        };
+
+        try {
+            // POST kérés a /orders végpontra
+            const response = await apiCall<OrderData>('/orders', {
+                method: 'POST',
+                data: orderRequest,
+            });
+            notifications.show({ // Sikeres vásárlás értesítés
+                title: 'Sikeres Jegyvásárlás',
+                message: `Rendelés ID: ${response.id}. A jegy(ek) sikeresen létrehozva. Teljes ár: ${response.totalPrice} Ft.`,
+                color: 'green',
+                icon: <IconCheck size={16} />
+            });
+            purchaseForm.reset(); // Űrlap ürítése
+            // Opcionálisan frissítjük a rendelések listáját, ha az "orders" fül aktív
+            if (activeTab === 'orders') await fetchOrders();
+        } catch (err) {
+            setPurchaseError(err instanceof Error ? err.message : "Jegyvásárlás sikertelen.");
+        } finally {
+            setPurchaseLoading(false);
         }
-        // Reset messages when switching tabs
+    };
+
+    // --- Effektek (useEffect Hook) ---
+    // Adatok lekérdezése és állapotok visszaállítása fülváltáskor
+    useEffect(() => {
+        if (activeTab === 'orders') {
+            fetchOrders(); // Rendelések lekérdezése
+        } else if (activeTab === 'purchase') {
+            fetchScreenings(); // Vetítések lekérdezése a vásárláshoz
+        }
+        // Hibaüzenetek törlése fülváltáskor
         setValidationError(null);
-        setValidationSuccess(null);
         setOrdersError(null);
-    }, [activeTab, fetchOrders]);
+        setPurchaseError(null); // Vásárlási hiba törlése is
+        setScreeningsError(null); // Vetítés hiba törlése is
+    }, [activeTab, fetchOrders, fetchScreenings]); // Függőségek: aktív fül és a lekérdező függvények
 
 
-    // --- Role Check ---
+    // --- Szerepkör Ellenőrzés ---
+    // Csak Admin vagy Pénztáros láthatja az oldalt
     if (user?.role !== 'Admin' && user?.role !== 'Cashier') {
-        return <Alert icon={<IconAlertCircle size="1rem" />} title="Access Denied" color="orange">You do not have permission to view this page.</Alert>;
+        return <Alert icon={<IconAlertCircle size="1rem" />} title="Hozzáférés megtagadva" color="orange">Nincs jogosultságod az oldal megtekintéséhez.</Alert>;
     }
 
-    // --- Table Rows ---
+    // --- Táblázat Sorok Generálása ---
+    // Rendelések táblázat sorai
     const orderRows = orders.map((order) => (
+        // Biztosítjuk, hogy ne legyen felesleges whitespace a Table.Tr körül
         <Table.Tr key={order.id}>
             <Table.Td>{order.id}</Table.Td>
-            <Table.Td>{order.userId ?? 'Guest'}</Table.Td>
+            <Table.Td>{order.userId ?? 'Vendég'}</Table.Td>
             <Table.Td>{order.email ?? '-'}</Table.Td>
             <Table.Td>{order.phone ?? '-'}</Table.Td>
             <Table.Td>{order.totalPrice} Ft</Table.Td>
             <Table.Td>
-                {order.tickets.map(t => `ID: ${t.id} (Seat: ${t.seatNumber}, Scr: ${t.screeningId}, Status: ${t.status})`).join('; ')}
+                {order.tickets.length > 0 ? (
+                    <List size="sm" spacing="xs">
+                        {order.tickets.map(t => (
+                            <List.Item key={t.id}>
+                                ID: {t.id}, Ülés: {t.seatNumber}, Vetítés ID: {t.screeningId}, Státusz: {t.status}
+                            </List.Item>
+                        ))}
+                    </List>
+                ) : (
+                    'Nincsenek jegyek'
+                )}
             </Table.Td>
-            {/* Add actions if needed, e.g., view details */}
         </Table.Tr>
     ));
 
+    // --- Dropdown Adatok Előkészítése (Vásárláshoz) ---
+    const screeningOptionsForSelect = screenings.map(s => ({
+        value: s.id.toString(),
+        // Biztonságos hozzáférés itt is, bár a fetchScreenings már szűrt
+        label: `${s.movieTitle || 'Ismeretlen film'} - ${s.roomName || 'Ismeretlen terem'} (${new Date(s.screeningDate).toLocaleString('hu-HU')}) - ${s.price} Ft`,
+    }));
+
     return (
         <Paper shadow="xs" p="md">
-            <Title order={2} mb="lg">Cashier Dashboard</Title>
+            <Title order={2} mb="lg">Pénztáros Kezelőfelület</Title>
 
             <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tabs.List grow>
-                    <Tabs.Tab value="validate" leftSection={<IconTicket size={14} />}>Validate Ticket</Tabs.Tab>
-                    <Tabs.Tab value="orders" leftSection={<IconListDetails size={14} />}>View Orders</Tabs.Tab>
-                    {/* <Tabs.Tab value="purchase" leftSection={<IconShoppingCartPlus size={14} />}>Purchase for User</Tabs.Tab> */}
+                <Tabs.List grow> {/* Fülek kitöltik a helyet */}
+                    <Tabs.Tab value="validate" leftSection={<IconTicket size={14} />}>Jegy Érvényesítés</Tabs.Tab>
+                    <Tabs.Tab value="orders" leftSection={<IconListDetails size={14} />}>Rendelések Megtekintése</Tabs.Tab>
+                    {/* Vásárlás fül aktiválása */}
+                    <Tabs.Tab value="purchase" leftSection={<IconShoppingCartPlus size={14} />}>Vásárlás Másnak</Tabs.Tab>
                 </Tabs.List>
 
-                {/* Ticket Validation Panel */}
+                {/* Jegyérvényesítési Panel */}
                 <Tabs.Panel value="validate" pt="lg">
-                    <Title order={4} mb="md">Validate Ticket by ID</Title>
-                    {validationError && <Alert icon={<IconAlertCircle size="1rem" />} title="Validation Error" color="red" mb="md" withCloseButton onClose={() => setValidationError(null)}>{validationError}</Alert>}
-                    {validationSuccess && <Alert icon={<IconAlertCircle size="1rem" />} title="Validation Successful" color="green" mb="md" withCloseButton onClose={() => setValidationSuccess(null)}>{validationSuccess}</Alert>}
+                    <Title order={4} mb="md">Jegy Érvényesítése ID Alapján</Title>
+                    {/* Hibaüzenet érvényesítéskor */}
+                    {validationError && <Alert icon={<IconAlertCircle size="1rem" />} title="Érvényesítési Hiba" color="red" mb="md" withCloseButton onClose={() => setValidationError(null)}>{validationError}</Alert>}
+                    {/* Sikeres üzenet helyett notification jelenik meg */}
+                    {/* {validationSuccess && <Alert icon={<IconCheck size="1rem" />} title="Sikeres Érvényesítés" color="green" mb="md" withCloseButton onClose={() => setValidationSuccess(null)}>{validationSuccess}</Alert>} */}
+                    {/* Érvényesítő űrlap */}
                     <Box component="form" onSubmit={validationForm.onSubmit(handleValidateTicket)} maw={400}>
                         <NumberInput
-                            label="Ticket ID"
-                            placeholder="Enter ticket ID"
+                            label="Jegy ID"
+                            placeholder="Adja meg a jegy ID-ját"
                             required
                             min={1}
                             allowDecimal={false}
                             {...validationForm.getInputProps('ticketId')}
                             mb="md"
                         />
-                        <Button type="submit" loading={validationLoading}>Validate Ticket</Button>
+                        <Button type="submit" loading={validationLoading}>Jegy Érvényesítése</Button>
                     </Box>
                 </Tabs.Panel>
 
-                {/* View Orders Panel */}
+                {/* Rendelések Megtekintése Panel */}
                 <Tabs.Panel value="orders" pt="lg">
-                    <Title order={4} mb="md">All Orders</Title>
+                    <Title order={4} mb="md">Összes Rendelés</Title>
+                    {/* Betöltésjelző */}
                     {ordersLoading && <Loader my="lg" />}
-                    {ordersError && !ordersLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Error Loading Orders" color="red">{ordersError}</Alert>}
+                    {/* Hibaüzenet betöltéskor */}
+                    {ordersError && !ordersLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a rendelések betöltésekor" color="red">{ordersError}</Alert>}
+                    {/* Rendelések táblázata */}
                     {!ordersLoading && !ordersError && (
                         <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>Order ID</Table.Th>
-                                    <Table.Th>User ID / Guest</Table.Th>
+                                    <Table.Th>Rendelés ID</Table.Th>
+                                    <Table.Th>Felhasználó ID / Vendég</Table.Th>
                                     <Table.Th>Email</Table.Th>
-                                    <Table.Th>Phone</Table.Th>
-                                    <Table.Th>Total Price</Table.Th>
-                                    <Table.Th>Tickets</Table.Th>
-                                    {/* <Table.Th>Actions</Table.Th> */}
+                                    <Table.Th>Telefon</Table.Th>
+                                    <Table.Th>Teljes Ár</Table.Th>
+                                    <Table.Th>Jegyek</Table.Th>
+                                    {/* <Table.Th>Műveletek</Table.Th> */}
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{orderRows}</Table.Tbody>
@@ -171,14 +335,86 @@ function CashierDashboard() {
                     )}
                 </Tabs.Panel>
 
-                {/* Purchase for User Panel (Placeholder) */}
-                {/*
+                {/* Vásárlás Másnak Panel */}
                 <Tabs.Panel value="purchase" pt="lg">
-                    <Title order={4} mb="md">Purchase Tickets for User/Guest</Title>
-                    <Alert color="blue" title="Under Construction">This feature is not yet implemented.</Alert>
-                    {/* Ide jönne a jegyvásárlási komponens, ami lehetővé teszi a pénztárosnak a vásárlást *}
+                    <Title order={4} mb="md">Jegyvásárlás Felhasználónak/Vendégnek</Title>
+                    {/* Hibaüzenet vásárláskor */}
+                    {purchaseError && <Alert icon={<IconAlertCircle size="1rem" />} title="Vásárlási Hiba" color="red" mb="md" withCloseButton onClose={() => setPurchaseError(null)}>{purchaseError}</Alert>}
+                    {/* Hibaüzenet vetítések betöltésekor */}
+                    {screeningsError && !screeningsLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a vetítések betöltésekor" color="red" mb="md">{screeningsError}</Alert>}
+                    {/* Betöltésjelző vetítésekhez */}
+                    {screeningsLoading && <Loader my="lg" />}
+
+                    {/* Vásárlási űrlap (csak ha nincs hiba és betöltés) */}
+                    {!screeningsLoading && !screeningsError && (
+                        <Box component="form" onSubmit={purchaseForm.onSubmit(handlePurchase)} maw={500}>
+                            <Stack>
+                                {/* Vetítés kiválasztása */}
+                                <Select
+                                    label="Vetítés"
+                                    placeholder="Válassz vetítést"
+                                    data={screeningOptionsForSelect} // Előkészített vetítés opciók
+                                    searchable
+                                    required
+                                    {...purchaseForm.getInputProps('screeningId')}
+                                />
+
+                                {/* Ülésszám megadása */}
+                                <NumberInput
+                                    label="Ülésszám"
+                                    placeholder="Add meg az ülésszámot"
+                                    required
+                                    min={1}
+                                    allowDecimal={false}
+                                    {...purchaseForm.getInputProps('seatNumber')}
+                                />
+
+                                {/* Vásárló típusának kiválasztása */}
+                                <Radio.Group
+                                    name="purchaseType"
+                                    label="Vásárló típusa"
+                                    required
+                                    {...purchaseForm.getInputProps('purchaseType')}
+                                >
+                                    <Group mt="xs">
+                                        <Radio value="guest" label="Vendég" />
+                                        <Radio value="user" label="Regisztrált felhasználó" />
+                                    </Group>
+                                </Radio.Group>
+
+                                {/* Feltételes mezők a vásárló típusától függően */}
+                                {purchaseForm.values.purchaseType === 'user' ? (
+                                    <NumberInput
+                                        label="Felhasználó ID"
+                                        placeholder="Add meg a felhasználó ID-ját"
+                                        required
+                                        min={1}
+                                        allowDecimal={false}
+                                        {...purchaseForm.getInputProps('userId')}
+                                    />
+                                ) : (
+                                    <>
+                                        <TextInput
+                                            label="Email cím"
+                                            placeholder="vendeg@email.com"
+                                            required
+                                            type="email"
+                                            {...purchaseForm.getInputProps('email')}
+                                        />
+                                        <TextInput
+                                            label="Telefonszám"
+                                            placeholder="+36 30 123 4567"
+                                            required
+                                            {...purchaseForm.getInputProps('phone')}
+                                        />
+                                    </>
+                                )}
+
+                                <Button type="submit" loading={purchaseLoading} mt="md">Vásárlás Indítása</Button>
+                            </Stack>
+                        </Box>
+                    )}
                 </Tabs.Panel>
-                */}
             </Tabs>
         </Paper>
     );

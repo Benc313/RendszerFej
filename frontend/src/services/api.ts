@@ -45,17 +45,36 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
             return undefined as T; // Nincs tartalom, undefined-ot adunk vissza
         }
 
-        const responseData = await response.json();
+        // Check Content-Type before assuming JSON
+        const contentType = response.headers.get("content-type");
+        let responseData: any; // Use 'any' temporarily
+
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            responseData = await response.json(); // Parse JSON only if header indicates it
+        } else {
+             // If not JSON, try to get text for error messages, but don't assume JSON structure
+             responseData = { message: await response.text() };
+        }
+
 
         if (!response.ok) {
             // Próbáljuk meg kinyerni a hibaüzenetet a backend válaszából
             let errorMessage = `HTTP error ${response.status}: ${response.statusText}`;
-            if (responseData && responseData.message) {
-                errorMessage = responseData.message; // Backend által küldött üzenet
-            } else if (responseData && responseData.errors && Array.isArray(responseData.errors)) {
-                errorMessage = responseData.errors.join(', '); // Backend validációs hibák
-            } else if (responseData && responseData.title) {
-                 errorMessage = responseData.title; // ASP.NET Core probléma részletek címe
+            // Use optional chaining and check types more carefully
+            if (responseData && typeof responseData === 'object') {
+                if (typeof responseData.message === 'string') {
+                    errorMessage = responseData.message; // Backend által küldött üzenet
+                } else if (Array.isArray(responseData.errors) && responseData.errors.every((e: any) => typeof e === 'string')) {
+                    errorMessage = responseData.errors.join(', '); // Backend validációs hibák
+                } else if (typeof responseData.title === 'string') {
+                    errorMessage = responseData.title; // ASP.NET Core probléma részletek címe
+                } else if (typeof responseData.message === 'string' && !contentType?.includes("application/json")) {
+                    // Handle plain text error response
+                    errorMessage = responseData.message;
+                }
+            } else if (typeof responseData === 'string') {
+                 // Handle cases where responseData might be a plain string (e.g., from response.text())
+                 errorMessage = responseData;
             }
 
             console.error('API Error:', errorMessage, 'Response Data:', responseData); // Részletesebb logolás

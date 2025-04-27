@@ -1,12 +1,18 @@
-﻿namespace Backend.Messages
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Messages;
+
+public class UserRequest
 {
-    public class UserRequest
-    {
-        public string? Name { get; set; }
-        public string? Phone { get; set; }
-        public string? Email { get; set; }
-        public string? Password { get; set; }
+    // Remove Name as it's not updated via profile page
+    // public string Name { get; set; }
 
+    [Required]
+    public string Email { get; set; }
 
-    }
+    // Password is optional for update
+    public string? Password { get; set; }
+
+    [Required]
+    public string Phone { get; set; }
 }

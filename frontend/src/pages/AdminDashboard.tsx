@@ -5,588 +5,661 @@ import { useAuth } from '../contexts/AuthContext';
 import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, PasswordInput, Textarea, NumberInput, Tabs, Select } from '@mantine/core'; // Select hozzáadva
 import { DateTimePicker } from '@mantine/dates'; // DateTimePicker importálása
 import { useForm } from '@mantine/form';
-import { IconAlertCircle, IconTrash, IconLock, IconUserPlus, IconPencil, IconMovie, IconUsers, IconBuildingSkyscraper, IconCalendarEvent, IconCheck } from '@tabler/icons-react'; // IconCheck hozzáadva
-import { useDisclosure } from '@mantine/hooks';
+import { IconAlertCircle, IconTrash, IconLock, IconUserPlus, IconPencil, IconMovie, IconUsers, IconBuildingSkyscraper, IconCalendarEvent, IconCheck, IconLockOpen } from '@tabler/icons-react'; // IconCheck hozzáadva
 import { notifications } from '@mantine/notifications'; // notifications importálása
 import '@mantine/dates/styles.css'; // Dátumválasztó stílusok
 
-// --- User Management Interfaces ---
+// --- Felhasználókezelési Interfészek ---
 interface UserData {
     id: number;
     name: string;
     email: string;
     role: 'Admin' | 'Cashier' | 'User';
     phone: string;
-    bannedTill?: string | null;
+    bannedTill?: string | null; // Tiltás lejárati ideje (opcionális)
 }
-interface NewCashierForm {
+interface NewCashierForm { // Új pénztáros űrlap adatai
     name: string;
     email: string;
     phoneNumber: string;
     password: string;
 }
-// --- End User Management Interfaces ---
+// --- Felhasználókezelési Interfészek Vége ---
 
-// --- Movie Management Interfaces ---
-interface MovieData {
+// --- Filmkezelési Interfészek ---
+interface MovieData { // Film adatai (backend és frontend)
     id: number;
     title: string;
     description: string;
     duration: number;
 }
-interface MovieFormValues {
+interface MovieFormValues { // Film űrlap értékei
     title: string;
     description: string;
-    duration: number | '';
+    duration: number | ''; // Lehet üres string a NumberInput miatt
 }
-// --- End Movie Management Interfaces ---
+// --- Filmkezelési Interfészek Vége ---
 
-// --- Room Management Interfaces ---
-interface RoomData {
+// --- Teremkezelési Interfészek ---
+interface RoomData { // Terem adatai (backend és frontend)
     id: number;
-    roomName: string; // Backend: Room
-    seats: number;
+    roomName: string; // Backend: Terem.Room
+    seats: number;    // Backend: Terem.Seats
 }
-interface RoomFormValues {
+interface RoomFormValues { // Terem űrlap értékei
     roomName: string;
-    seats: number | '';
+    seats: number | ''; // Lehet üres string a NumberInput miatt
 }
-// --- End Room Management Interfaces ---
+// --- Teremkezelési Interfészek Vége ---
 
-// --- Screening Management Interfaces ---
-// Backend ScreeningResponse alapján
+// --- Vetítéskezelési Interfészek ---
+// Interfész a Backend ScreeningResponse struktúrájához igazítva
+interface BackendScreeningResponse {
+    id: number;
+    screeningDate: string; // ISO string formátumú dátum
+    price: number;
+    movie: MovieData; // Beágyazott Movie objektum
+    terem: RoomData;  // Beágyazott Terem objektum (RoomData-ként kezelve)
+}
+
+// Frontend állapot interfész - kényelmi ID-kkal kiegészítve
 interface ScreeningData {
     id: number;
     screeningDate: string; // ISO string
     price: number;
-    movieTitle: string;
-    roomName: string;
-    movieId: number; // Hozzáadva a könnyebb kezeléshez
-    roomId: number;  // Hozzáadva a könnyebb kezeléshez
+    movieTitle: string; // Megjelenítéshez
+    roomName: string;   // Megjelenítéshez
+    movieId: number;    // Űrlap kitöltéshez/szerkesztéshez
+    roomId: number;     // Űrlap kitöltéshez/szerkesztéshez
 }
+
 // Backend ScreeningRequest alapján (frontend űrlaphoz igazítva)
 interface ScreeningFormValues {
     movieId: string | null; // Select komponens string ID-t ad vissza
     roomId: string | null;  // Select komponens string ID-t ad vissza
-    screeningDate: Date | null;
-    price: number | '';
+    screeningDate: Date | null; // Dátum objektum az űrlapon
+    price: number | ''; // Lehet üres string a NumberInput miatt
 }
-// --- End Screening Management Interfaces ---
+// --- Vetítéskezelési Interfészek Vége ---
 
 
 function AdminDashboard() {
-    const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<string | null>('users');
+    const [activeTab, setActiveTab] = useState<string | null>('users'); // Aktív fül állapota
+    const { user } = useAuth(); // Bejelentkezett felhasználó adatai
 
-    // --- User Management State ---
-    const [users, setUsers] = useState<UserData[]>([]);
-    const [usersLoading, setUsersLoading] = useState(false);
-    const [usersError, setUsersError] = useState<string | null>(null);
-    const [userActionError, setUserActionError] = useState<string | null>(null);
-    const [cashierModalOpened, { open: openCashierModal, close: closeCashierModal }] = useDisclosure(false);
-    // --- End User Management State ---
+    // --- Állapotok és Hook-ok ---
+    // --- Felhasználókezelési Állapotok ---
+    const [users, setUsers] = useState<UserData[]>([]); // Felhasználók listája
+    const [usersLoading, setUsersLoading] = useState(false); // Felhasználók betöltése folyamatban
+    const [usersError, setUsersError] = useState<string | null>(null); // Hiba a felhasználók betöltésekor
+    const [userActionError, setUserActionError] = useState<string | null>(null); // Hiba felhasználói művelet közben (pl. hozzáadás, törlés)
+    const [isCashierModalOpen, setIsCashierModalOpen] = useState(false); // Pénztáros hozzáadása modális ablak állapota
+    // --- Felhasználókezelési Állapotok Vége ---
 
-    // --- Movie Management State ---
-    const [movies, setMovies] = useState<MovieData[]>([]); // Ezt használjuk a vetítés űrlaphoz is
-    const [moviesLoading, setMoviesLoading] = useState(false);
-    const [moviesError, setMoviesError] = useState<string | null>(null);
-    const [movieActionError, setMovieActionError] = useState<string | null>(null);
-    const [movieModalOpened, { open: openMovieModal, close: closeMovieModal }] = useDisclosure(false);
-    const [editingMovie, setEditingMovie] = useState<MovieData | null>(null);
-    // --- End Movie Management State ---
+    // --- Filmkezelési Állapotok ---
+    const [movies, setMovies] = useState<MovieData[]>([]); // Filmek listája (vetítés űrlaphoz is)
+    const [moviesLoading, setMoviesLoading] = useState(false); // Filmek betöltése folyamatban
+    const [moviesError, setMoviesError] = useState<string | null>(null); // Hiba a filmek betöltésekor
+    const [movieActionError, setMovieActionError] = useState<string | null>(null); // Hiba film művelet közben
+    const [isMovieModalOpen, setIsMovieModalOpen] = useState(false); // Film hozzáadása/szerkesztése modális ablak állapota
+    const [editingMovie, setEditingMovie] = useState<MovieData | null>(null); // Szerkesztett film adatai (vagy null, ha újat adunk hozzá)
+    // --- Filmkezelési Állapotok Vége ---
 
-    // --- Room Management State ---
-    const [rooms, setRooms] = useState<RoomData[]>([]); // Ezt használjuk a vetítés űrlaphoz is
-    const [roomsLoading, setRoomsLoading] = useState(false);
-    const [roomsError, setRoomsError] = useState<string | null>(null);
-    const [roomActionError, setRoomActionError] = useState<string | null>(null);
-    const [roomModalOpened, { open: openRoomModal, close: closeRoomModal }] = useDisclosure(false);
-    const [editingRoom, setEditingRoom] = useState<RoomData | null>(null);
-    // --- End Room Management State ---
+    // --- Teremkezelési Állapotok ---
+    const [rooms, setRooms] = useState<RoomData[]>([]); // Termek listája (vetítés űrlaphoz is)
+    const [roomsLoading, setRoomsLoading] = useState(false); // Termek betöltése folyamatban
+    const [roomsError, setRoomsError] = useState<string | null>(null); // Hiba a termek betöltésekor
+    const [roomActionError, setRoomActionError] = useState<string | null>(null); // Hiba terem művelet közben
+    const [isRoomModalOpen, setIsRoomModalOpen] = useState(false); // Terem hozzáadása/szerkesztése modális ablak állapota
+    const [editingRoom, setEditingRoom] = useState<RoomData | null>(null); // Szerkesztett terem adatai
+    // --- Teremkezelési Állapotok Vége ---
 
-    // --- Screening Management State ---
-    const [screenings, setScreenings] = useState<ScreeningData[]>([]);
-    const [screeningsLoading, setScreeningsLoading] = useState(false);
-    const [screeningsError, setScreeningsError] = useState<string | null>(null);
-    const [screeningActionError, setScreeningActionError] = useState<string | null>(null);
-    const [screeningModalOpened, { open: openScreeningModal, close: closeScreeningModal }] = useDisclosure(false);
-    const [editingScreening, setEditingScreening] = useState<ScreeningData | null>(null); // Szerkesztett vetítés state
-    // --- End Screening Management State ---
+    // --- Vetítéskezelési Állapotok ---
+    const [screenings, setScreenings] = useState<ScreeningData[]>([]); // Vetítések listája (frontend formátum)
+    const [screeningsLoading, setScreeningsLoading] = useState(false); // Vetítések betöltése folyamatban
+    const [screeningsError, setScreeningsError] = useState<string | null>(null); // Hiba a vetítések betöltésekor
+    const [screeningActionError, setScreeningActionError] = useState<string | null>(null); // Hiba vetítés művelet közben
+    const [isScreeningModalOpen, setIsScreeningModalOpen] = useState(false); // Vetítés hozzáadása/szerkesztése modális ablak állapota
+    const [editingScreening, setEditingScreening] = useState<ScreeningData | null>(null); // Szerkesztett vetítés adatai
+    // --- Vetítéskezelési Állapotok Vége ---
 
 
-    // --- Data Fetching ---
+    // --- Űrlapok Kezelése (useForm Hook) ---
+    // Pénztáros hozzáadása űrlap
+    const cashierForm = useForm<NewCashierForm>({
+        initialValues: { name: '', email: '', phoneNumber: '', password: '' },
+        validate: { // Validációs szabályok
+            email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Érvénytelen email cím'),
+            password: (value) => (value.length >= 6 ? null : 'A jelszónak legalább 6 karakter hosszúnak kell lennie'),
+            name: (value) => (value.trim().length > 0 ? null : 'A név megadása kötelező'),
+            phoneNumber: (value) => (value.trim().length >= 6 ? null : 'A telefonszám túl rövidnek tűnik'),
+        },
+     });
+     // Film hozzáadása/szerkesztése űrlap
+    const movieForm = useForm<MovieFormValues>({
+        initialValues: { title: '', description: '', duration: '' },
+        validate: {
+            title: (value) => (value.trim().length > 0 ? null : 'A cím megadása kötelező'),
+            description: (value) => (value.trim().length > 0 ? null : 'A leírás megadása kötelező'),
+            duration: (value) => (value !== '' && value > 0 ? null : 'A játékidőnek pozitív számnak kell lennie'),
+        },
+    });
+    // Terem hozzáadása/szerkesztése űrlap
+    const roomForm = useForm<RoomFormValues>({
+        initialValues: { roomName: '', seats: '' },
+        validate: {
+            roomName: (value) => (value.trim().length === 1 ? null : 'A terem nevének egy karakternek kell lennie'),
+            seats: (value) => (value !== '' && value > 0 ? null : 'Az ülések számának pozitív számnak kell lennie'),
+        },
+    });
+    // Vetítés hozzáadása/szerkesztése űrlap
+    const screeningForm = useForm<ScreeningFormValues>({
+        initialValues: { movieId: null, roomId: null, screeningDate: null, price: '' },
+        validate: {
+            movieId: (value) => (value ? null : 'A film kiválasztása kötelező'),
+            roomId: (value) => (value ? null : 'A terem kiválasztása kötelező'),
+            screeningDate: (value) => (value ? null : 'A vetítés időpontjának megadása kötelező'),
+            price: (value) => (value !== '' && value >= 0 ? null : 'Az árnak nem negatív számnak kell lennie'),
+        },
+    });
+    // --- Űrlapok Kezelése Vége ---
+
+    // --- Adatlekérdezések ---
+    // Felhasználók lekérdezése
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true);
         setUsersError(null);
-        setUserActionError(null);
+        setUserActionError(null); // Korábbi műveleti hiba törlése
         try {
+            // Figyelem: Ideális esetben itt egy admin-specifikus végpont kellene, pl. /admin/users
+            // Jelenleg a /api/user/users végpontot használja, ami lehet, hogy minden felhasználót visszaad.
+            // A műveletek (törlés, tiltás) viszont a /admin végpontokat használják helyesen.
             const data = await apiCall<UserData[]>('/api/user/users');
             setUsers(data);
         } catch (err) {
-            setUsersError(err instanceof Error ? err.message : "Failed to fetch users.");
+            setUsersError(err instanceof Error ? err.message : "Felhasználók lekérdezése sikertelen.");
         } finally {
             setUsersLoading(false);
         }
     }, []);
 
+    // Filmek lekérdezése (lista és dropdownokhoz)
     const fetchMovies = useCallback(async () => {
-        setMoviesLoading(true); // Akkor is loading, ha csak a dropdownhoz kell
+        setMoviesLoading(true);
         setMoviesError(null);
         setMovieActionError(null);
         try {
             const data = await apiCall<MovieData[]>('/movies');
             setMovies(data);
         } catch (err) {
-            setMoviesError(err instanceof Error ? err.message : "Failed to fetch movies.");
+            setMoviesError(err instanceof Error ? err.message : "Filmek lekérdezése sikertelen.");
         } finally {
             setMoviesLoading(false);
         }
     }, []);
 
+    // Termek lekérdezése (lista és dropdownokhoz)
     const fetchRooms = useCallback(async () => {
-        setRoomsLoading(true); // Akkor is loading, ha csak a dropdownhoz kell
+        setRoomsLoading(true);
         setRoomsError(null);
         setRoomActionError(null);
         try {
             const data = await apiCall<RoomData[]>('/room');
             setRooms(data);
         } catch (err) {
-            setRoomsError(err instanceof Error ? err.message : "Failed to fetch rooms.");
+            setRoomsError(err instanceof Error ? err.message : "Termek lekérdezése sikertelen.");
         } finally {
             setRoomsLoading(false);
         }
     }, []);
 
+    // Vetítések lekérdezése
     const fetchScreenings = useCallback(async () => {
         setScreeningsLoading(true);
         setScreeningsError(null);
         setScreeningActionError(null);
         try {
-            // A /screenings végpont ScreeningResponse[]-t ad vissza
-            const data = await apiCall<ScreeningData[]>('/screenings');
-            setScreenings(data);
+            // Backend válasz (BackendScreeningResponse) lekérdezése
+            const data = await apiCall<BackendScreeningResponse[]>('/screenings');
+            // Backend válasz átalakítása a frontend állapot (ScreeningData) struktúrájára
+            const mappedData: ScreeningData[] = data.map(s => ({
+                id: s.id,
+                screeningDate: s.screeningDate,
+                price: s.price,
+                movieTitle: s.movie.title, // Cím kinyerése
+                roomName: s.terem.roomName, // Terem nevének kinyerése
+                movieId: s.movie.id,       // Film ID kinyerése
+                roomId: s.terem.id,        // Terem ID kinyerése
+            }));
+            setScreenings(mappedData);
         } catch (err) {
-            setScreeningsError(err instanceof Error ? err.message : "Failed to fetch screenings.");
+            setScreeningsError(err instanceof Error ? err.message : "Vetítések lekérdezése sikertelen.");
         } finally {
             setScreeningsLoading(false);
         }
     }, []);
 
-    // Fetch movies and rooms once when the component mounts for the dropdowns
+    // Filmek és termek lekérdezése egyszer a komponens betöltődésekor (dropdownokhoz)
     useEffect(() => {
         fetchMovies();
         fetchRooms();
-    }, [fetchMovies, fetchRooms]);
+    }, [fetchMovies, fetchRooms]); // Csak a függvény referenciáktól függ
 
 
+    // Adatok lekérdezése az aktív fül alapján
     useEffect(() => {
-        // Fetch data based on the active tab
         if (activeTab === 'users') {
             fetchUsers();
         } else if (activeTab === 'movies') {
-            // Movies might be already fetched, but fetch again if needed or rely on initial fetch
+            // Filmek már lehet, hogy le vannak kérdezve, de ha kell, újra lekérdezzük
             if (movies.length === 0) fetchMovies();
         } else if (activeTab === 'rooms') {
-            // Rooms might be already fetched, but fetch again if needed or rely on initial fetch
+            // Termek már lehet, hogy le vannak kérdezve, de ha kell, újra lekérdezzük
             if (rooms.length === 0) fetchRooms();
         } else if (activeTab === 'screenings') {
             fetchScreenings();
-            // Ensure movies and rooms are available for the form
+            // Biztosítjuk, hogy a filmek és termek elérhetőek legyenek az űrlaphoz
             if (movies.length === 0) fetchMovies();
             if (rooms.length === 0) fetchRooms();
         }
+        // Függőségek: aktív fül, lekérdező függvények, és a filmek/termek listájának hossza (hogy újra lekérdezzen, ha üres)
     }, [activeTab, fetchUsers, fetchMovies, fetchRooms, fetchScreenings, movies.length, rooms.length]);
+    // --- Adatlekérdezések Vége ---
 
-    // --- User Management Handlers ---
-    const cashierForm = useForm<NewCashierForm>({
-        initialValues: { name: '', email: '', phoneNumber: '', password: '' },
-        validate: {
-            email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-            password: (value) => (value.length >= 6 ? null : 'Password must be at least 6 characters'),
-            name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
-            phoneNumber: (value) => (value.trim().length >= 6 ? null : 'Phone number seems too short'),
-        },
-     });
+    // --- Modális Ablak Megnyitó Handler-ek (Kombinált) ---
+    // Pénztáros modális megnyitása és előkészítése
+    const openAndPrepareCashierModal = () => {
+        setUserActionError(null); // Hiba törlése
+        cashierForm.reset(); // Űrlap alaphelyzetbe állítása
+        setIsCashierModalOpen(true); // Modális megnyitása
+    };
+
+    // Film modális megnyitása és előkészítése (hozzáadás vagy szerkesztés)
+    const openAndPrepareMovieModal = (movieToEdit: MovieData | null = null) => {
+        setMovieActionError(null);
+        if (movieToEdit) { // Szerkesztés
+            setEditingMovie(movieToEdit);
+            movieForm.setValues({ // Űrlap feltöltése a szerkesztendő film adataival
+                title: movieToEdit.title,
+                description: movieToEdit.description,
+                duration: movieToEdit.duration,
+            });
+        } else { // Hozzáadás
+            setEditingMovie(null);
+            movieForm.reset();
+        }
+        setIsMovieModalOpen(true);
+    };
+
+    // Terem modális megnyitása és előkészítése
+    const openAndPrepareRoomModal = (roomToEdit: RoomData | null = null) => {
+        setRoomActionError(null);
+        if (roomToEdit) { // Szerkesztés
+            setEditingRoom(roomToEdit);
+            roomForm.setValues({ roomName: roomToEdit.roomName, seats: roomToEdit.seats });
+        } else { // Hozzáadás
+            setEditingRoom(null);
+            roomForm.reset();
+        }
+        setIsRoomModalOpen(true);
+    };
+
+    // Vetítés modális megnyitása és előkészítése
+    const openAndPrepareScreeningModal = (screeningToEdit: ScreeningData | null = null) => {
+        setScreeningActionError(null);
+        if (screeningToEdit) { // Szerkesztés
+            setEditingScreening(screeningToEdit);
+            // Űrlap feltöltése a tárolt ID-k és adatok alapján
+            screeningForm.setValues({
+                movieId: screeningToEdit.movieId.toString(), // Tárolt movieId
+                roomId: screeningToEdit.roomId.toString(),   // Tárolt roomId
+                screeningDate: screeningToEdit.screeningDate ? new Date(screeningToEdit.screeningDate) : null, // Dátum objektummá alakítás
+                price: screeningToEdit.price ?? '', // Ár (vagy üres string)
+            });
+        } else { // Hozzáadás
+            setEditingScreening(null);
+            screeningForm.reset();
+        }
+        setIsScreeningModalOpen(true);
+    };
+    // --- Modális Ablak Megnyitó Handler-ek Vége ---
+
+
+    // --- Felhasználókezelési Handler-ek ---
+    // Új pénztáros hozzáadása
     const handleAddCashier = async (values: NewCashierForm) => {
         setUserActionError(null);
         try {
-            await apiCall<void>('/admin/admin/cashier', {
-                method: 'POST', // Corrected from 'Post'
+            // Helyes végpont: /admin/cashier
+            await apiCall<void>('/admin/cashier', {
+                method: 'POST',
                 data: values,
             });
-            // setUserActionSuccess(`Cashier ${values.name} added successfully.`); // Replaced
-            notifications.show({
-                title: 'Cashier Added',
-                message: `Cashier ${values.name} added successfully.`,
+            notifications.show({ // Sikeres hozzáadás értesítés
+                title: 'Pénztáros hozzáadva',
+                message: `A(z) ${values.name} nevű pénztáros sikeresen hozzáadva.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            closeCashierModal();
-            cashierForm.reset();
-            if (activeTab === 'users') await fetchUsers(); // Fetch only if tab is active
+            setIsCashierModalOpen(false); // Modális bezárása
+            cashierForm.reset(); // Űrlap ürítése
+            if (activeTab === 'users') await fetchUsers(); // Lista frissítése, ha a felhasználók fül aktív
         } catch (err) {
-            setUserActionError(err instanceof Error ? err.message : "Failed to add cashier.");
+            setUserActionError(err instanceof Error ? err.message : "Pénztáros hozzáadása sikertelen.");
         }
      };
+     // Felhasználó (pénztáros) törlése
     const handleDeleteUser = async (userId: number, userName: string) => {
-        if (!window.confirm(`Are you sure you want to delete user ${userName} (ID: ${userId})? This cannot be undone.`)) return;
+        if (!window.confirm(`Biztosan törölni szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót? Ez a művelet nem vonható vissza.`)) return;
         setUserActionError(null);
         try {
-            await apiCall<void>(`/admin/admin/user/${userId}`, { method: 'DELETE' });
-            // setUserActionSuccess(`User ${userName} (ID: ${userId}) deleted successfully.`); // Replaced
-            notifications.show({
-                title: 'User Deleted',
-                message: `User ${userName} (ID: ${userId}) deleted successfully.`,
+            // Helyes végpont: /admin/user/{id}
+            await apiCall<void>(`/admin/user/${userId}`, { method: 'DELETE' });
+            notifications.show({ // Sikeres törlés értesítés
+                title: 'Felhasználó törölve',
+                message: `A(z) ${userName} (ID: ${userId}) felhasználó sikeresen törölve.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            if (activeTab === 'users') await fetchUsers();
+            if (activeTab === 'users') await fetchUsers(); // Lista frissítése
         } catch (err) {
-            setUserActionError(err instanceof Error ? err.message : `Failed to delete user ${userId}.`);
+            setUserActionError(err instanceof Error ? err.message : `Felhasználó (ID: ${userId}) törlése sikertelen.`);
         }
      };
+     // Felhasználó tiltása
     const handleBanUser = async (userId: number, userName: string) => {
-         if (!window.confirm(`Are you sure you want to ban user ${userName} (ID: ${userId}) for 30 days?`)) return;
+         if (!window.confirm(`Biztosan tiltani szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót 30 napra?`)) return;
         setUserActionError(null);
         try {
-            const response = await apiCall<{ message: string }>(`/admin/ban/${userId}`, { method: 'POST' }); // Corrected from 'Post'
-            // setUserActionSuccess(response.message || `User ${userName} (ID: ${userId}) banned successfully.`); // Replaced
-            notifications.show({
-                title: 'User Banned',
-                message: response.message || `User ${userName} (ID: ${userId}) banned successfully.`,
+            // Helyes végpont: /admin/ban/{id}
+            const response = await apiCall<{ message: string }>(`/admin/ban/${userId}`, { method: 'POST' });
+            notifications.show({ // Sikeres tiltás értesítés
+                title: 'Felhasználó tiltva',
+                message: response.message || `A(z) ${userName} (ID: ${userId}) felhasználó sikeresen tiltva.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            if (activeTab === 'users') await fetchUsers();
+            if (activeTab === 'users') await fetchUsers(); // Lista frissítése
         } catch (err) {
-             setUserActionError(err instanceof Error ? err.message : `Failed to ban user ${userId}.`);
+             setUserActionError(err instanceof Error ? err.message : `Felhasználó (ID: ${userId}) tiltása sikertelen.`);
         }
      };
+     // Felhasználó tiltásának feloldása
+    const handleUnbanUser = async (userId: number, userName: string) => {
+        if (!window.confirm(`Biztosan fel szeretnéd oldani a(z) ${userName} (ID: ${userId}) felhasználó tiltását?`)) return;
+        setUserActionError(null);
+        try {
+            // Helyes végpont: /admin/unban/{id}
+            const response = await apiCall<{ message: string }>(`/admin/unban/${userId}`, { method: 'POST' });
+            notifications.show({ // Sikeres feloldás értesítés
+                title: 'Tiltás feloldva',
+                message: response.message || `A(z) ${userName} (ID: ${userId}) felhasználó tiltása sikeresen feloldva.`,
+                color: 'green',
+                icon: <IconLockOpen size={16} /> // Megfelelő ikon
+            });
+            if (activeTab === 'users') await fetchUsers(); // Lista frissítése
+        } catch (err) {
+             setUserActionError(err instanceof Error ? err.message : `Felhasználó (ID: ${userId}) tiltásának feloldása sikertelen.`);
+        }
+     };
+     // Tiltás dátumának formázása olvasható alakra
     const formatBanDate = (dateString: string | null | undefined) => {
-        if (!dateString) return 'Not banned';
+        if (!dateString) return 'Nincs tiltva';
         try {
             const date = new Date(dateString);
-            return date > new Date() ? date.toLocaleString('hu-HU') : 'Not banned (Expired)';
-        } catch (e) { return 'Invalid date'; }
+            // Ellenőrzi, hogy a tiltás még érvényes-e
+            return date > new Date() ? date.toLocaleString('hu-HU') : 'Nincs tiltva (Lejárt)';
+        } catch (e) { return 'Érvénytelen dátum'; }
     };
-    // --- End User Management Handlers ---
+    // --- Felhasználókezelési Handler-ek Vége ---
 
-    // --- Movie Management Handlers ---
-    const movieForm = useForm<MovieFormValues>({
-        initialValues: { title: '', description: '', duration: '' },
-        validate: {
-            title: (value) => (value.trim().length > 0 ? null : 'Title is required'),
-            description: (value) => (value.trim().length > 0 ? null : 'Description is required'),
-            duration: (value) => (value !== '' && value > 0 ? null : 'Duration must be a positive number'),
-        },
-    });
-    const handleOpenAddMovieModal = () => {
-        setEditingMovie(null);
-        movieForm.reset();
-        setMovieActionError(null);
-        openMovieModal();
-    };
-    const handleEditMovieClick = (movie: MovieData) => {
-        setEditingMovie(movie);
-        movieForm.setValues({
-            title: movie.title,
-            description: movie.description,
-            duration: movie.duration,
-        });
-        setMovieActionError(null);
-        openMovieModal();
-    };
+    // --- Filmkezelési Handler-ek ---
+    // Film hozzáadása vagy szerkesztése
     const handleMovieSubmit = async (values: MovieFormValues) => {
         setMovieActionError(null);
+        // Adatok előkészítése a backend kéréshez
         const movieData = {
             title: values.title,
             description: values.description,
-            duration: Number(values.duration)
+            duration: Number(values.duration) // String -> Number konverzió
         };
         try {
-            const action = editingMovie ? 'updated' : 'added';
-            if (editingMovie) {
-                await apiCall<MovieData>(`/movies/${editingMovie.id}`, { method: 'PUT', data: movieData });
-            } else {
-                await apiCall<MovieData>('/movies', { method: 'POST', data: movieData });
+            const action = editingMovie ? 'módosítva' : 'hozzáadva'; // Művelet neve az üzenethez
+            let response: MovieData;
+            if (editingMovie) { // Szerkesztés (PUT kérés)
+                response = await apiCall<MovieData>(`/movies/${editingMovie.id}`, { method: 'PUT', data: movieData });
+            } else { // Hozzáadás (POST kérés)
+                response = await apiCall<MovieData>('/movies', { method: 'POST', data: movieData });
             }
-            // setMovieActionSuccess(`Movie "${values.title}" ${action} successfully.`); // Replaced
-            notifications.show({
-                title: `Movie ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                message: `Movie "${values.title}" ${action} successfully.`,
+            notifications.show({ // Sikeres művelet értesítés
+                title: `Film ${action}`,
+                message: `A(z) "${values.title}" című film sikeresen ${action}.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            closeMovieModal();
-            movieForm.reset();
-            await fetchMovies(); // Fetch movies again for dropdowns and list
+            setIsMovieModalOpen(false); // Modális bezárása
+            movieForm.reset(); // Űrlap ürítése
+            await fetchMovies(); // Filmek listájának és a dropdownok frissítése
         } catch (err) {
-            setMovieActionError(err instanceof Error ? err.message : `Failed to ${editingMovie ? 'update' : 'add'} movie.`);
+            setMovieActionError(err instanceof Error ? err.message : `Film ${editingMovie ? 'módosítása' : 'hozzáadása'} sikertelen.`);
         }
     };
+    // Film törlése
     const handleDeleteMovie = async (movieId: number, movieTitle: string) => {
-        if (!window.confirm(`Are you sure you want to delete the movie "${movieTitle}" (ID: ${movieId})? This cannot be undone.`)) return;
+        if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${movieTitle}" (ID: ${movieId}) című filmet? Ez a művelet nem vonható vissza.`)) return;
         setMovieActionError(null);
         try {
+            // DELETE kérés a /movies/{id} végpontra
             await apiCall<void>(`/movies/${movieId}`, { method: 'DELETE' });
-            // setMovieActionSuccess(`Movie "${movieTitle}" (ID: ${movieId}) deleted successfully.`); // Replaced
-            notifications.show({
-                title: 'Movie Deleted',
-                message: `Movie "${movieTitle}" (ID: ${movieId}) deleted successfully.`,
+            notifications.show({ // Sikeres törlés értesítés
+                title: 'Film törölve',
+                message: `A(z) "${movieTitle}" (ID: ${movieId}) című film sikeresen törölve.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            await fetchMovies(); // Fetch movies again
+            await fetchMovies(); // Filmek listájának frissítése
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : `Failed to delete movie ${movieId}.`;
+            const errorMsg = err instanceof Error ? err.message : `Film (ID: ${movieId}) törlése sikertelen.`;
+            // Specifikus hiba kezelése, ha a backend jelzi, hogy aktív vetítés miatt nem törölhető
             if (errorMsg.includes("Cannot delete a movie with active screenings")) {
-                 setMovieActionError("Cannot delete this movie because it has active screenings associated with it.");
+                 setMovieActionError("Ez a film nem törölhető, mert aktív vetítések tartoznak hozzá.");
             } else {
                  setMovieActionError(errorMsg);
             }
         }
     };
-    // --- End Movie Management Handlers ---
+    // Film szerkesztése gombra kattintáskor
+    const handleEditMovieClick = (movie: MovieData) => {
+        openAndPrepareMovieModal(movie); // Megnyitja a modálist szerkesztésre
+    };
+    // --- Filmkezelési Handler-ek Vége ---
 
-    // --- Room Management Handlers ---
-    const roomForm = useForm<RoomFormValues>({
-        initialValues: { roomName: '', seats: '' },
-        validate: {
-            roomName: (value) => (value.trim().length === 1 ? null : 'Room name must be a single character'),
-            seats: (value) => (value !== '' && value > 0 ? null : 'Seats must be a positive number'),
-        },
-    });
-    const handleOpenAddRoomModal = () => {
-        setEditingRoom(null);
-        roomForm.reset();
-        setRoomActionError(null);
-        openRoomModal();
-    };
-    const handleEditRoomClick = (room: RoomData) => {
-        setEditingRoom(room);
-        roomForm.setValues({ roomName: room.roomName, seats: room.seats });
-        setRoomActionError(null);
-        openRoomModal();
-    };
+    // --- Teremkezelési Handler-ek ---
+    // Terem hozzáadása vagy szerkesztése
     const handleRoomSubmit = async (values: RoomFormValues) => {
         setRoomActionError(null);
         const roomData = { roomName: values.roomName, seats: Number(values.seats) };
         try {
-            const action = editingRoom ? 'updated' : 'added';
-            if (editingRoom) {
+            const action = editingRoom ? 'módosítva' : 'hozzáadva';
+            if (editingRoom) { // Szerkesztés (PUT)
                 await apiCall<RoomData>(`/room/${editingRoom.id}`, { method: 'PUT', data: roomData });
-            } else {
+            } else { // Hozzáadás (POST)
+                // A backend itt valószínűleg csak 201 Created vagy 200 OK választ ad, nem feltétlen a terem adatait
                 await apiCall<void>('/room', { method: 'POST', data: roomData });
             }
-            // setRoomActionSuccess(`Room "${values.roomName}" ${action} successfully.`); // Replaced
-            notifications.show({
-                title: `Room ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                message: `Room "${values.roomName}" ${action} successfully.`,
+            notifications.show({ // Sikeres művelet értesítés
+                title: `Terem ${action}`,
+                message: `A(z) "${values.roomName}" nevű terem sikeresen ${action}.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            closeRoomModal();
-            roomForm.reset();
-            await fetchRooms(); // Fetch rooms again
+            setIsRoomModalOpen(false); // Modális bezárása
+            roomForm.reset(); // Űrlap ürítése
+            await fetchRooms(); // Termek listájának frissítése
         } catch (err) {
-            setRoomActionError(err instanceof Error ? err.message : `Failed to ${editingRoom ? 'update' : 'add'} room.`);
+            setRoomActionError(err instanceof Error ? err.message : `Terem ${editingRoom ? 'módosítása' : 'hozzáadása'} sikertelen.`);
         }
     };
+    // Terem törlése
     const handleDeleteRoom = async (roomId: number, roomName: string) => {
-        // TODO: Check for screenings using this room before deleting? Backend might handle this.
-        if (!window.confirm(`Are you sure you want to delete room "${roomName}" (ID: ${roomId})? This cannot be undone.`)) return;
+        // TODO: Frontend oldali ellenőrzés is lehetne, de a backend valószínűleg kezeli.
+        if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${roomName}" (ID: ${roomId}) nevű termet? Ez a művelet nem vonható vissza.`)) return;
         setRoomActionError(null);
         try {
+            // DELETE kérés a /room/{id} végpontra
             await apiCall<void>(`/room/${roomId}`, { method: 'DELETE' });
-            // setRoomActionSuccess(`Room "${roomName}" (ID: ${roomId}) deleted successfully.`); // Replaced
-            notifications.show({
-                title: 'Room Deleted',
-                message: `Room "${roomName}" (ID: ${roomId}) deleted successfully.`,
+            notifications.show({ // Sikeres törlés értesítés
+                title: 'Terem törölve',
+                message: `A(z) "${roomName}" (ID: ${roomId}) nevű terem sikeresen törölve.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            await fetchRooms(); // Fetch rooms again
+            await fetchRooms(); // Termek listájának frissítése
         } catch (err) {
-             // Handle specific error if backend prevents deletion due to screenings
-             const errorMsg = err instanceof Error ? err.message : `Failed to delete room ${roomId}.`;
-             // Example: Adjust based on actual backend error message
-             if (errorMsg.includes("Cannot delete room with active screenings")) {
-                 setRoomActionError("Cannot delete this room because it has active screenings associated with it.");
+             // Specifikus hiba kezelése (ha a backend jelzi)
+             const errorMsg = err instanceof Error ? err.message : `Terem (ID: ${roomId}) törlése sikertelen.`;
+             // Példa: A backend hibaüzenet alapján (ezt pontosítani kell a valós üzenethez)
+             if (errorMsg.includes("Cannot delete room with active screenings")) { // Feltételezett hibaüzenet
+                 setRoomActionError("Ez a terem nem törölhető, mert aktív vetítések tartoznak hozzá.");
              } else {
                  setRoomActionError(errorMsg);
              }
         }
     };
-    // --- End Room Management Handlers ---
-
-    // --- Screening Management Handlers ---
-    const screeningForm = useForm<ScreeningFormValues>({
-        initialValues: {
-            movieId: null,
-            roomId: null,
-            screeningDate: null,
-            price: '',
-        },
-        validate: {
-            movieId: (value) => (value ? null : 'Movie is required'),
-            roomId: (value) => (value ? null : 'Room is required'),
-            screeningDate: (value) => (value ? null : 'Screening date and time are required'),
-            price: (value) => (value !== '' && value >= 0 ? null : 'Price must be a non-negative number'), // Price can be 0
-        },
-    });
-
-    // Modális ablak megnyitása (új vetítéshez)
-    const handleOpenAddScreeningModal = () => {
-        setEditingScreening(null);
-        screeningForm.reset();
-        setScreeningActionError(null);
-        openScreeningModal();
+    // Terem szerkesztése gombra kattintáskor
+    const handleEditRoomClick = (room: RoomData) => {
+        openAndPrepareRoomModal(room); // Megnyitja a modálist szerkesztésre
     };
+    // --- Teremkezelési Handler-ek Vége ---
 
-    // Modális ablak megnyitása (szerkesztéshez)
-    const handleEditScreeningClick = (screening: ScreeningData) => {
-        setEditingScreening(screening);
-        screeningForm.setValues({
-            movieId: screening.movieId.toString(), // Select expects string value
-            roomId: screening.roomId.toString(),   // Select expects string value
-            screeningDate: new Date(screening.screeningDate), // Convert ISO string to Date object
-            price: screening.price,
-        });
-        setScreeningActionError(null);
-        openScreeningModal();
-    };
-
+    // --- Vetítéskezelési Handler-ek ---
     // Vetítés hozzáadása vagy szerkesztése
     const handleScreeningSubmit = async (values: ScreeningFormValues) => {
         setScreeningActionError(null);
 
-        // Find movie title and room name based on selected IDs
-        const selectedMovie = movies.find(m => m.id === Number(values.movieId));
-        const selectedRoom = rooms.find(r => r.id === Number(values.roomId));
+        // Kiválasztott film és terem objektumok megkeresése a nevük kinyeréséhez
+        const selectedMovie = movies.find(m => m.id.toString() === values.movieId);
+        const selectedRoom = rooms.find(r => r.id.toString() === values.roomId);
 
+        // Ellenőrzés (bár az űrlap validációja is elkapja)
         if (!selectedMovie || !selectedRoom || !values.screeningDate) {
-            setScreeningActionError("Invalid movie, room, or date selected.");
+            setScreeningActionError("Érvénytelen film, terem vagy dátum lett kiválasztva.");
+            notifications.show({
+                title: 'Hiba',
+                message: 'Kérjük, válasszon érvényes filmet, termet és dátumot.',
+                color: 'red',
+            });
             return;
         }
 
-        // Backend expects MovieTitle and TeremName
-        const screeningRequestData = {
-            movieTitle: selectedMovie.title,
-            teremName: selectedRoom.roomName,
-            screeningDate: values.screeningDate.toISOString(), // Send as ISO string
-            price: Number(values.price)
+        // Payload összeállítása a Backend.Messages.ScreeningRequest alapján
+        const screeningPayload = {
+            movieTitle: selectedMovie.title,       // Cím a kiválasztott film objektumból
+            teremName: selectedRoom.roomName,      // Teremnév a kiválasztott terem objektumból
+            screeningDate: values.screeningDate.toISOString(), // ISO string formátumban küldés
+            price: Number(values.price) // Ár számként
         };
 
         try {
-            const action = editingScreening ? 'updated' : 'added';
-            if (editingScreening) {
-                // Szerkesztés (PUT /screenings/{id})
-                await apiCall<ScreeningData>(`/screenings/${editingScreening.id}`, {
-                    method: 'PUT',
-                    data: screeningRequestData,
-                });
-            } else {
-                // Hozzáadás (POST /screenings)
-                await apiCall<ScreeningData>('/screenings', {
-                    method: 'POST',
-                    data: screeningRequestData,
-                });
-            }
-            // setScreeningActionSuccess(`Screening ${action} successfully.`); // Replaced
-            notifications.show({
-                title: `Screening ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                message: `Screening for ${selectedMovie.title} ${action} successfully.`,
+            const action = editingScreening ? 'módosítva' : 'hozzáadva';
+            const endpoint = editingScreening ? `/screenings/${editingScreening.id}` : '/screenings'; // Végpont meghatározása
+            const method = editingScreening ? 'PUT' : 'POST'; // Metódus meghatározása
+
+            // Helyes payload (screeningPayload) használata a kérésben
+            await apiCall<BackendScreeningResponse>(endpoint, { method: method, data: screeningPayload });
+
+            notifications.show({ // Sikeres művelet értesítés
+                title: `Vetítés ${action}`,
+                message: `A(z) "${selectedMovie.title}" film vetítése a(z) "${selectedRoom.roomName}" teremben sikeresen ${action}.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            closeScreeningModal();
-            screeningForm.reset();
-            if (activeTab === 'screenings') await fetchScreenings(); // Lista frissítése
+            setIsScreeningModalOpen(false); // Modális bezárása
+            screeningForm.reset(); // Űrlap ürítése
+            await fetchScreenings(); // Vetítések listájának frissítése
         } catch (err) {
-            setScreeningActionError(err instanceof Error ? err.message : `Failed to ${editingScreening ? 'update' : 'add'} screening.`);
+            setScreeningActionError(err instanceof Error ? err.message : `Vetítés ${editingScreening ? 'módosítása' : 'hozzáadása'} sikertelen.`);
         }
     };
 
     // Vetítés törlése
-    const handleDeleteScreening = async (screeningId: number) => {
-        if (!window.confirm(`Are you sure you want to delete screening ID: ${screeningId}? This cannot be undone.`)) {
-            return;
-        }
+    const handleDeleteScreening = async (screeningId: number, movieTitle: string, roomName: string) => {
+        if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${movieTitle}" film vetítését a(z) "${roomName}" teremben (ID: ${screeningId})? Ez a művelet nem vonható vissza.`)) return;
         setScreeningActionError(null);
         try {
+            // DELETE kérés a /screenings/{id} végpontra
             await apiCall<void>(`/screenings/${screeningId}`, { method: 'DELETE' });
-            // setScreeningActionSuccess(`Screening (ID: ${screeningId}) deleted successfully.`); // Replaced
-            notifications.show({
-                title: 'Screening Deleted',
-                message: `Screening (ID: ${screeningId}) deleted successfully.`,
+            notifications.show({ // Sikeres törlés értesítés
+                title: 'Vetítés törölve',
+                message: `A(z) ${screeningId} ID-jű vetítés sikeresen törölve.`,
                 color: 'green',
                 icon: <IconCheck size={16} />
             });
-            if (activeTab === 'screenings') await fetchScreenings(); // Lista frissítése
+            await fetchScreenings(); // Vetítések listájának frissítése
         } catch (err) {
-            // Handle specific error if backend prevents deletion (e.g., tickets sold)
-            const errorMsg = err instanceof Error ? err.message : `Failed to delete screening ${screeningId}.`;
-            // Example: Adjust based on actual backend error message
-             if (errorMsg.includes("Cannot delete screening with purchased tickets")) {
-                 setScreeningActionError("Cannot delete this screening because tickets have been purchased for it.");
-             } else {
-                 setScreeningActionError(errorMsg);
-             }
+            setScreeningActionError(err instanceof Error ? err.message : `Vetítés (ID: ${screeningId}) törlése sikertelen.`);
         }
     };
-
-    // Helper to format date string
-    const formatScreeningDate = (dateString: string) => {
-        try {
-            return new Date(dateString).toLocaleString('hu-HU', {
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        } catch (e) {
-            return 'Invalid Date';
-        }
+    // Vetítés szerkesztése gombra kattintáskor
+    const handleEditScreeningClick = (screening: ScreeningData) => {
+        openAndPrepareScreeningModal(screening); // Megnyitja a modálist szerkesztésre
     };
-    // --- End Screening Management Handlers ---
+    // --- Vetítéskezelési Handler-ek Vége ---
 
 
-    // Check if the logged-in user is actually an Admin
+    // Ellenőrzés: Csak adminisztrátor láthatja ezt az oldalt
     if (user?.role !== 'Admin') {
-         return <Alert icon={<IconAlertCircle size="1rem" />} title="Access Denied" color="orange">You do not have permission to view this page.</Alert>;
+         return <Alert icon={<IconAlertCircle size="1rem" />} title="Hozzáférés megtagadva" color="orange">Nincs jogosultságod az oldal megtekintéséhez.</Alert>;
     }
 
-    // --- Table Rows ---
-    const userRows = users.map((u) => (
-        <Table.Tr key={u.id}>
-            <Table.Td>{u.id}</Table.Td>
-            <Table.Td>{u.name}</Table.Td>
-            <Table.Td>{u.email}</Table.Td>
-            <Table.Td>{u.phone}</Table.Td>
-            <Table.Td>{u.role}</Table.Td>
-            <Table.Td>{formatBanDate(u.bannedTill)}</Table.Td>
-            <Table.Td>
-                <Group gap="xs">
-                     <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteUser(u.id, u.name)} disabled={u.id === user?.id} title={u.id === user?.id ? "Cannot delete yourself" : "Delete User"}><IconTrash size={14} /></Button>
-                     <Button size="xs" variant="outline" color="orange" onClick={() => handleBanUser(u.id, u.name)} disabled={u.id === user?.id || (u.bannedTill && new Date(u.bannedTill) > new Date())} title={u.id === user?.id ? "Cannot ban yourself" : (u.bannedTill && new Date(u.bannedTill) > new Date() ? "User already banned" : "Ban User")}><IconLock size={14} /></Button>
-                </Group>
-            </Table.Td>
-        </Table.Tr>
-    ));
+    // --- Táblázat Sorok Generálása ---
+    // Felhasználók táblázat sorai
+    const userRows = users.map((u) => {
+        const isBanned = u.bannedTill && new Date(u.bannedTill) > new Date(); // Ellenőrzi, hogy a tiltás aktív-e
+        return (
+            <Table.Tr key={u.id}>
+                <Table.Td>{u.id}</Table.Td>
+                <Table.Td>{u.name}</Table.Td>
+                <Table.Td>{u.email}</Table.Td>
+                <Table.Td>{u.phone}</Table.Td>
+                <Table.Td>{u.role}</Table.Td>
+                <Table.Td>{formatBanDate(u.bannedTill)}</Table.Td> {/* Formázott tiltási dátum */}
+                <Table.Td>
+                    <Group gap="xs">
+                         {/* Törlés gomb (önmagát nem törölheti) */}
+                         <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteUser(u.id, u.name)} disabled={u.id === user?.id} title={u.id === user?.id ? "Saját magad nem törölheted" : "Felhasználó törlése"}><IconTrash size={14} /></Button>
+                         {/* Feltételes Tiltás/Feloldás gomb */}
+                         {isBanned ? (
+                             <Button size="xs" variant="outline" color="green" onClick={() => handleUnbanUser(u.id, u.name)} title="Tiltás feloldása"><IconLockOpen size={14} /></Button>
+                         ) : (
+                             <Button size="xs" variant="outline" color="orange" onClick={() => handleBanUser(u.id, u.name)} disabled={u.id === user?.id} title={u.id === user?.id ? "Saját magad nem tilthatod" : "Felhasználó tiltása"}><IconLock size={14} /></Button>
+                         )}
+                    </Group>
+                </Table.Td>
+            </Table.Tr>
+        );
+    });
 
+    // Filmek táblázat sorai
     const movieRows = movies.map((m) => (
         <Table.Tr key={m.id}>
             <Table.Td>{m.id}</Table.Td>
             <Table.Td>{m.title}</Table.Td>
+            {/* Leírás levágása, ha túl hosszú */}
             <Table.Td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.description}</Table.Td>
-            <Table.Td>{m.duration} min</Table.Td>
+            <Table.Td>{m.duration} perc</Table.Td>
             <Table.Td>
                 <Group gap="xs">
-                    <Button size="xs" variant="outline" color="blue" onClick={() => handleEditMovieClick(m)} title="Edit Movie"><IconPencil size={14} /></Button>
-                    <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteMovie(m.id, m.title)} title="Delete Movie"><IconTrash size={14} /></Button>
+                    {/* Szerkesztés gomb */}
+                    <Button size="xs" variant="outline" color="blue" onClick={() => handleEditMovieClick(m)} title="Film szerkesztése"><IconPencil size={14} /></Button>
+                    {/* Törlés gomb */}
+                    <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteMovie(m.id, m.title)} title="Film törlése"><IconTrash size={14} /></Button>
                 </Group>
             </Table.Td>
         </Table.Tr>
     ));
 
+    // Termek táblázat sorai
     const roomRows = rooms.map((r) => (
         <Table.Tr key={r.id}>
             <Table.Td>{r.id}</Table.Td>
@@ -594,65 +667,83 @@ function AdminDashboard() {
             <Table.Td>{r.seats}</Table.Td>
             <Table.Td>
                 <Group gap="xs">
-                    <Button size="xs" variant="outline" color="blue" onClick={() => handleEditRoomClick(r)} title="Edit Room"><IconPencil size={14} /></Button>
-                    <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteRoom(r.id, r.roomName)} title="Delete Room"><IconTrash size={14} /></Button>
+                     {/* Szerkesztés gomb */}
+                    <Button size="xs" variant="outline" color="blue" onClick={() => handleEditRoomClick(r)} title="Terem szerkesztése"><IconPencil size={14} /></Button>
+                    {/* Törlés gomb */}
+                    <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteRoom(r.id, r.roomName)} title="Terem törlése"><IconTrash size={14} /></Button>
                 </Group>
             </Table.Td>
         </Table.Tr>
     ));
 
+    // Vetítések táblázat sorai (a frontend ScreeningData alapján)
     const screeningRows = screenings.map((s) => (
         <Table.Tr key={s.id}>
             <Table.Td>{s.id}</Table.Td>
-            <Table.Td>{s.movieTitle}</Table.Td>
-            <Table.Td>{s.roomName}</Table.Td>
-            <Table.Td>{formatScreeningDate(s.screeningDate)}</Table.Td>
+            <Table.Td>{s.movieTitle}</Table.Td> {/* Kinyert filmcím */}
+            <Table.Td>{s.roomName}</Table.Td>   {/* Kinyert teremnév */}
+            <Table.Td>{new Date(s.screeningDate).toLocaleString('hu-HU')}</Table.Td> {/* Formázott dátum */}
             <Table.Td>{s.price} Ft</Table.Td>
             <Table.Td>
                 <Group gap="xs">
-                    <Button size="xs" variant="outline" color="blue" onClick={() => handleEditScreeningClick(s)} title="Edit Screening"><IconPencil size={14} /></Button>
-                    <Button size="xs" variant="outline" color="red" onClick={() => handleDeleteScreening(s.id)} title="Delete Screening"><IconTrash size={14} /></Button>
+                     {/* Szerkesztés gomb (a helyes ScreeningData objektumot adja át) */}
+                    <Button size="xs" variant="outline" onClick={() => handleEditScreeningClick(s)} leftSection={<IconPencil size={14} />}>Szerkesztés</Button>
+                    {/* Törlés gomb (a helyes adatokat adja át a törléshez/megerősítéshez) */}
+                    <Button size="xs" variant="filled" color="red" onClick={() => handleDeleteScreening(s.id, s.movieTitle, s.roomName)} leftSection={<IconTrash size={14} />}>Törlés</Button>
                 </Group>
             </Table.Td>
         </Table.Tr>
     ));
-    // --- End Table Rows ---
+    // --- Táblázat Sorok Generálása Vége ---
 
-    // --- Dropdown Data ---
-    const movieOptions = movies.map(movie => ({ value: movie.id.toString(), label: movie.title }));
-    const roomOptions = rooms.map(room => ({ value: room.id.toString(), label: `Room ${room.roomName} (${room.seats} seats)` }));
-    // --- End Dropdown Data ---
+    // --- Dropdown Adatok Előkészítése ---
+    // Filmek a Select komponenshez (csak a létező címekkel)
+    const movieOptions = movies
+        .filter(movie => movie && typeof movie.title === 'string') // Biztosítja, hogy a film és a cím létezik
+        .map(movie => ({ value: movie.id.toString(), label: movie.title }));
 
+    // Termek a Select komponenshez (csak a létező nevekkel)
+    const roomOptions = rooms
+        .filter(room => room && typeof room.roomName === 'string') // Biztosítja, hogy a terem és a név létezik
+        .map(room => ({ value: room.id.toString(), label: room.roomName }));
+    // --- Dropdown Adatok Előkészítése Vége ---
 
     return (
-        <Paper shadow="xs" p="md" style={{ minWidth: '80vw' }}> {/* Szélesebb Paper */}
-            <Title order={2} mb="lg">Admin Dashboard</Title>
+        // A modális ablakokat a Tabs komponensen kívül helyezzük el a helyes működés érdekében
+        <Paper shadow="xs" p="md" style={{ minWidth: '80vw' }}>
+            <Title order={2} mb="lg">Adminisztrációs Felület</Title>
 
+            {/* Fülek a különböző kezelőfelületekhez */}
             <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tabs.List grow> {/* Grow a fülekhez */}
-                    <Tabs.Tab value="users" leftSection={<IconUsers size={14} />}>User Management</Tabs.Tab>
-                    <Tabs.Tab value="movies" leftSection={<IconMovie size={14} />}>Movie Management</Tabs.Tab>
-                    <Tabs.Tab value="rooms" leftSection={<IconBuildingSkyscraper size={14} />}>Room Management</Tabs.Tab>
-                    <Tabs.Tab value="screenings" leftSection={<IconCalendarEvent size={14} />}>Screening Management</Tabs.Tab> {/* Új fül */}
+                <Tabs.List grow> {/* Fülek kitöltik a rendelkezésre álló helyet */}
+                    <Tabs.Tab value="users" leftSection={<IconUsers size={14} />}>Felhasználókezelés</Tabs.Tab>
+                    <Tabs.Tab value="movies" leftSection={<IconMovie size={14} />}>Filmkezelés</Tabs.Tab>
+                    <Tabs.Tab value="rooms" leftSection={<IconBuildingSkyscraper size={14} />}>Teremkezelés</Tabs.Tab>
+                    <Tabs.Tab value="screenings" leftSection={<IconCalendarEvent size={14} />}>Vetítéskezelés</Tabs.Tab>
                 </Tabs.List>
 
-                {/* User Management Panel */}
+                {/* Felhasználókezelési Panel */}
                 <Tabs.Panel value="users" pt="lg">
-                    {userActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="User Action Error" color="red" mb="md" withCloseButton onClose={() => setUserActionError(null)}>{userActionError}</Alert>}
-                    <Button leftSection={<IconUserPlus size={14} />} onClick={openCashierModal} mb="md">Add New Cashier</Button>
+                    {/* Hibaüzenet megjelenítése felhasználói műveletnél */}
+                    {userActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Felhasználói művelet hiba" color="red" mb="md" withCloseButton onClose={() => setUserActionError(null)}>{userActionError}</Alert>}
+                    {/* Új pénztáros hozzáadása gomb */}
+                    <Button leftSection={<IconUserPlus size={14} />} onClick={openAndPrepareCashierModal} mb="md">Új pénztáros hozzáadása</Button>
+                    {/* Betöltésjelző */}
                     {usersLoading && <Loader my="lg" />}
-                    {usersError && !usersLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Error Loading Users" color="red">{usersError}</Alert>}
+                    {/* Hibaüzenet betöltéskor */}
+                    {usersError && !usersLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a felhasználók betöltésekor" color="red">{usersError}</Alert>}
+                    {/* Felhasználók táblázata */}
                     {!usersLoading && !usersError && (
                         <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>ID</Table.Th>
-                                    <Table.Th>Name</Table.Th>
+                                    <Table.Th>Név</Table.Th>
                                     <Table.Th>Email</Table.Th>
-                                    <Table.Th>Phone</Table.Th>
-                                    <Table.Th>Role</Table.Th>
-                                    <Table.Th>Banned Until</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th>Telefon</Table.Th>
+                                    <Table.Th>Szerepkör</Table.Th>
+                                    <Table.Th>Tiltva eddig</Table.Th>
+                                    <Table.Th>Műveletek</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{userRows}</Table.Tbody>
@@ -660,21 +751,26 @@ function AdminDashboard() {
                     )}
                 </Tabs.Panel>
 
-                {/* Movie Management Panel */}
+                {/* Filmkezelési Panel */}
                 <Tabs.Panel value="movies" pt="lg">
-                     {movieActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Movie Action Error" color="red" mb="md" withCloseButton onClose={() => setMovieActionError(null)}>{movieActionError}</Alert>}
-                    <Button leftSection={<IconMovie size={14} />} onClick={handleOpenAddMovieModal} mb="md">Add New Movie</Button>
+                     {/* Hibaüzenet film műveletnél */}
+                     {movieActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Film művelet hiba" color="red" mb="md" withCloseButton onClose={() => setMovieActionError(null)}>{movieActionError}</Alert>}
+                     {/* Új film hozzáadása gomb (null-t ad át, jelezve, hogy új filmről van szó) */}
+                    <Button leftSection={<IconMovie size={14} />} onClick={() => openAndPrepareMovieModal(null)} mb="md">Új film hozzáadása</Button>
+                    {/* Betöltésjelző */}
                     {moviesLoading && <Loader my="lg" />}
-                    {moviesError && !moviesLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Error Loading Movies" color="red">{moviesError}</Alert>}
+                    {/* Hibaüzenet betöltéskor */}
+                    {moviesError && !moviesLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a filmek betöltésekor" color="red">{moviesError}</Alert>}
+                    {/* Filmek táblázata */}
                     {!moviesLoading && !moviesError && (
                         <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>ID</Table.Th>
-                                    <Table.Th>Title</Table.Th>
-                                    <Table.Th>Description</Table.Th>
-                                    <Table.Th>Duration</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th>Cím</Table.Th>
+                                    <Table.Th>Leírás</Table.Th>
+                                    <Table.Th>Játékidő</Table.Th>
+                                    <Table.Th>Műveletek</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{movieRows}</Table.Tbody>
@@ -682,20 +778,25 @@ function AdminDashboard() {
                     )}
                 </Tabs.Panel>
 
-                {/* Room Management Panel */}
+                {/* Teremkezelési Panel */}
                 <Tabs.Panel value="rooms" pt="lg">
-                     {roomActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Room Action Error" color="red" mb="md" withCloseButton onClose={() => setRoomActionError(null)}>{roomActionError}</Alert>}
-                    <Button leftSection={<IconBuildingSkyscraper size={14} />} onClick={handleOpenAddRoomModal} mb="md">Add New Room</Button>
+                     {/* Hibaüzenet terem műveletnél */}
+                     {roomActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Terem művelet hiba" color="red" mb="md" withCloseButton onClose={() => setRoomActionError(null)}>{roomActionError}</Alert>}
+                     {/* Új terem hozzáadása gomb */}
+                    <Button leftSection={<IconBuildingSkyscraper size={14} />} onClick={() => openAndPrepareRoomModal(null)} mb="md">Új terem hozzáadása</Button>
+                    {/* Betöltésjelző */}
                     {roomsLoading && <Loader my="lg" />}
-                    {roomsError && !roomsLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Error Loading Rooms" color="red">{roomsError}</Alert>}
+                    {/* Hibaüzenet betöltéskor */}
+                    {roomsError && !roomsLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a termek betöltésekor" color="red">{roomsError}</Alert>}
+                    {/* Termek táblázata */}
                     {!roomsLoading && !roomsError && (
                         <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>ID</Table.Th>
-                                    <Table.Th>Room Name</Table.Th>
-                                    <Table.Th>Seats</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th>Terem neve</Table.Th>
+                                    <Table.Th>Ülőhelyek</Table.Th>
+                                    <Table.Th>Műveletek</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{roomRows}</Table.Tbody>
@@ -703,22 +804,30 @@ function AdminDashboard() {
                     )}
                 </Tabs.Panel>
 
-                {/* Screening Management Panel */}
+                {/* Vetítéskezelési Panel */}
                 <Tabs.Panel value="screenings" pt="lg">
-                     {screeningActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Screening Action Error" color="red" mb="md" withCloseButton onClose={() => setScreeningActionError(null)}>{screeningActionError}</Alert>}
-                    <Button leftSection={<IconCalendarEvent size={14} />} onClick={handleOpenAddScreeningModal} mb="md">Add New Screening</Button>
-                    {screeningsLoading && <Loader my="lg" />}
-                    {screeningsError && !screeningsLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Error Loading Screenings" color="red">{screeningsError}</Alert>}
+                    <Group justify="space-between" mb="md">
+                        <Title order={3}>Vetítések</Title>
+                        {/* Új vetítés hozzáadása gomb */}
+                        <Button onClick={() => openAndPrepareScreeningModal(null)} leftSection={<IconCalendarEvent size={14} />}>Új vetítés hozzáadása</Button>
+                    </Group>
+                     {/* Betöltésjelző */}
+                     {screeningsLoading && <Loader my="lg" />}
+                     {/* Hibaüzenet betöltéskor */}
+                    {screeningsError && !screeningsLoading && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a vetítések betöltésekor" color="red">{screeningsError}</Alert>}
+                    {/* Hibaüzenet vetítés műveletnél */}
+                    {screeningActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Vetítés művelet hiba" color="red" mb="md" withCloseButton onClose={() => setScreeningActionError(null)}>{screeningActionError}</Alert>}
+                    {/* Vetítések táblázata */}
                     {!screeningsLoading && !screeningsError && (
-                        <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
+                        <Table striped highlightOnHover withTableBorder withColumnBorders>
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>ID</Table.Th>
-                                    <Table.Th>Movie</Table.Th>
-                                    <Table.Th>Room</Table.Th>
-                                    <Table.Th>Date & Time</Table.Th>
-                                    <Table.Th>Price</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th>Film</Table.Th>
+                                    <Table.Th>Terem</Table.Th>
+                                    <Table.Th>Dátum és idő</Table.Th>
+                                    <Table.Th>Ár</Table.Th>
+                                    <Table.Th>Műveletek</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{screeningRows}</Table.Tbody>
@@ -728,95 +837,109 @@ function AdminDashboard() {
 
             </Tabs>
 
-            {/* --- Modals --- */}
-            {/* Add/Edit Cashier Modal */}
-            <Modal opened={cashierModalOpened} onClose={closeCashierModal} title="Add New Cashier" centered>
+            {/* --- Modális Ablakok --- */}
+            {/* Pénztáros hozzáadása modális */}
+            <Modal opened={isCashierModalOpen} onClose={() => setIsCashierModalOpen(false)} title="Új pénztáros hozzáadása" centered>
+                 {/* Hibaüzenet a modálisban */}
+                 {userActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{userActionError}</Alert>}
+                 {/* Pénztáros űrlap */}
                  <form onSubmit={cashierForm.onSubmit(handleAddCashier)}>
-                    <TextInput label="Name" placeholder="Cashier's name" required {...cashierForm.getInputProps('name')} mb="sm" />
-                    <TextInput label="Email" placeholder="cashier@example.com" required {...cashierForm.getInputProps('email')} mb="sm" />
-                    <TextInput label="Phone Number" placeholder="+36..." required {...cashierForm.getInputProps('phoneNumber')} mb="sm" />
-                    <PasswordInput label="Password" placeholder="Password" required {...cashierForm.getInputProps('password')} mb="lg" />
-                    {userActionError && <Alert color="red" mb="md">{userActionError}</Alert>}
+                    <TextInput label="Név" required {...cashierForm.getInputProps('name')} mb="sm" />
+                    <TextInput label="Email" required type="email" {...cashierForm.getInputProps('email')} mb="sm" />
+                    <TextInput label="Telefonszám" required {...cashierForm.getInputProps('phoneNumber')} mb="sm" />
+                    <PasswordInput label="Jelszó" required {...cashierForm.getInputProps('password')} mb="lg" />
                     <Group justify="flex-end">
-                        <Button variant="default" onClick={closeCashierModal}>Cancel</Button>
-                        <Button type="submit">Add Cashier</Button>
+                        <Button variant="default" onClick={() => setIsCashierModalOpen(false)}>Mégse</Button>
+                        <Button type="submit">Pénztáros hozzáadása</Button>
                     </Group>
                  </form>
             </Modal>
 
-            {/* Add/Edit Movie Modal */}
-            <Modal opened={movieModalOpened} onClose={closeMovieModal} title={editingMovie ? "Edit Movie" : "Add New Movie"} centered>
+            {/* Film hozzáadása/szerkesztése modális */}
+            <Modal opened={isMovieModalOpen} onClose={() => setIsMovieModalOpen(false)} title={editingMovie ? 'Film szerkesztése' : 'Új film hozzáadása'} centered> {/* Added centered prop */}
+                 {/* Hibaüzenet */}
+                 {movieActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{movieActionError}</Alert>}
+                 {/* Film űrlap */}
                  <form onSubmit={movieForm.onSubmit(handleMovieSubmit)}>
-                    <TextInput label="Title" placeholder="Movie Title" required {...movieForm.getInputProps('title')} mb="sm" />
-                    <Textarea label="Description" placeholder="Movie Description" required {...movieForm.getInputProps('description')} mb="sm" minRows={3} autosize/>
-                    <NumberInput label="Duration (minutes)" placeholder="e.g., 120" required min={1} {...movieForm.getInputProps('duration')} mb="lg" />
-                    {movieActionError && <Alert color="red" mb="md">{movieActionError}</Alert>}
-                    <Group justify="flex-end">
-                        <Button variant="default" onClick={closeMovieModal}>Cancel</Button>
-                        <Button type="submit">{editingMovie ? "Update Movie" : "Add Movie"}</Button>
-                    </Group>
+                     <TextInput label="Cím" required {...movieForm.getInputProps('title')} mb="sm" />
+                     <Textarea label="Leírás" required {...movieForm.getInputProps('description')} mb="sm" />
+                     <NumberInput label="Játékidő (perc)" required min={1} allowDecimal={false} {...movieForm.getInputProps('duration')} mb="lg" />
+                     <Group justify="flex-end">
+                         <Button variant="default" onClick={() => setIsMovieModalOpen(false)}>Mégse</Button>
+                         <Button type="submit">Film mentése</Button>
+                     </Group>
                  </form>
             </Modal>
 
-            {/* Add/Edit Room Modal */}
-            <Modal opened={roomModalOpened} onClose={closeRoomModal} title={editingRoom ? "Edit Room" : "Add New Room"} centered>
+            {/* Terem hozzáadása/szerkesztése modális */}
+            <Modal opened={isRoomModalOpen} onClose={() => setIsRoomModalOpen(false)} title={editingRoom ? 'Terem szerkesztése' : 'Új terem hozzáadása'} centered> {/* Added centered prop */}
+                 {/* Hibaüzenet */}
+                 {roomActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{roomActionError}</Alert>}
+                 {/* Terem űrlap */}
                  <form onSubmit={roomForm.onSubmit(handleRoomSubmit)}>
-                    <TextInput label="Room Name (single character)" placeholder="e.g., A" required maxLength={1} {...roomForm.getInputProps('roomName')} mb="sm" />
-                    <NumberInput label="Number of Seats" placeholder="e.g., 50" required min={1} {...roomForm.getInputProps('seats')} mb="lg" />
-                    {roomActionError && <Alert color="red" mb="md">{roomActionError}</Alert>}
-                    <Group justify="flex-end">
-                        <Button variant="default" onClick={closeRoomModal}>Cancel</Button>
-                        <Button type="submit">{editingRoom ? "Update Room" : "Add Room"}</Button>
-                    </Group>
+                     <TextInput label="Terem neve (egy karakter)" required maxLength={1} {...roomForm.getInputProps('roomName')} mb="sm" />
+                     <NumberInput label="Ülőhelyek száma" required min={1} allowDecimal={false} {...roomForm.getInputProps('seats')} mb="lg" />
+                     <Group justify="flex-end">
+                         <Button variant="default" onClick={() => setIsRoomModalOpen(false)}>Mégse</Button>
+                         <Button type="submit">Terem mentése</Button>
+                     </Group>
                  </form>
             </Modal>
 
-            {/* Add/Edit Screening Modal */}
-            <Modal opened={screeningModalOpened} onClose={closeScreeningModal} title={editingScreening ? "Edit Screening" : "Add New Screening"} centered>
-                 <form onSubmit={screeningForm.onSubmit(handleScreeningSubmit)}>
+            {/* Vetítés hozzáadása/szerkesztése modális */}
+            <Modal opened={isScreeningModalOpen} onClose={() => setIsScreeningModalOpen(false)} title={editingScreening ? 'Vetítés szerkesztése' : 'Új vetítés hozzáadása'} centered> {/* Added centered prop */}
+                {/* Hibaüzenet */}
+                {screeningActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{screeningActionError}</Alert>}
+                {/* Vetítés űrlap */}
+                <form onSubmit={screeningForm.onSubmit(handleScreeningSubmit)}>
+                    {/* Film kiválasztása */}
                     <Select
-                        label="Movie"
-                        placeholder="Select movie"
-                        data={movieOptions}
+                        label="Film"
+                        placeholder="Válassz filmet"
+                        data={movieOptions} // Előkészített film opciók
+                        {...screeningForm.getInputProps('movieId')} // Összekötés a movieId állapottal
+                        searchable // Kereshetővé teszi a listát
+                        required
+                        mb="sm"
+                        error={screeningForm.errors.movieId} // Hiba megjelenítése
+                    />
+                    {/* Terem kiválasztása */}
+                    <Select
+                        label="Terem"
+                        placeholder="Válassz termet"
+                        data={roomOptions} // Előkészített terem opciók
+                        {...screeningForm.getInputProps('roomId')} // Összekötés a roomId állapottal
                         searchable
                         required
-                        {...screeningForm.getInputProps('movieId')}
                         mb="sm"
-                        disabled={moviesLoading} // Disable if movies are loading
+                        error={screeningForm.errors.roomId} // Hiba megjelenítése
                     />
-                     <Select
-                        label="Room"
-                        placeholder="Select room"
-                        data={roomOptions}
-                        searchable
-                        required
-                        {...screeningForm.getInputProps('roomId')}
-                        mb="sm"
-                        disabled={roomsLoading} // Disable if rooms are loading
-                    />
+                    {/* Dátum és idő választó */}
                     <DateTimePicker
-                        label="Screening Date and Time"
-                        placeholder="Pick date and time"
+                        label="Vetítés dátuma és ideje"
+                        placeholder="Válassz dátumot és időt"
+                        valueFormat="YYYY-MM-DD HH:mm" // Megjelenítési formátum
+                        {...screeningForm.getInputProps('screeningDate')} // Összekötés a screeningDate állapottal
                         required
-                        valueFormat="YYYY.MM.DD HH:mm"
-                        {...screeningForm.getInputProps('screeningDate')}
                         mb="sm"
+                        error={screeningForm.errors.screeningDate} // Hiba megjelenítése
                     />
+                    {/* Ár megadása */}
                     <NumberInput
-                        label="Price (Ft)"
-                        placeholder="e.g., 2500"
+                        label="Ár (Ft)"
+                        placeholder="Add meg az árat"
+                        min={0} // Minimum ár 0
+                        allowDecimal={false} // Egész szám
+                        {...screeningForm.getInputProps('price')} // Összekötés a price állapottal
                         required
-                        min={0} // Price can be 0
-                        step={100}
-                        {...screeningForm.getInputProps('price')}
                         mb="lg"
+                        error={screeningForm.errors.price} // Hiba megjelenítése
                     />
-                    {screeningActionError && <Alert color="red" mb="md">{screeningActionError}</Alert>}
                     <Group justify="flex-end">
-                        <Button variant="default" onClick={closeScreeningModal}>Cancel</Button>
-                        <Button type="submit">{editingScreening ? "Update Screening" : "Add Screening"}</Button>
+                        <Button variant="default" onClick={() => setIsScreeningModalOpen(false)}>Mégse</Button>
+                        <Button type="submit">Vetítés mentése</Button>
                     </Group>
-                 </form>
+                </form>
             </Modal>
 
         </Paper>

@@ -102,30 +102,34 @@ namespace Backend.Controllers
             }
             // --- End Authorization Check ---
 
-            Users existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            Users? existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (existingUser == null)
                 return NotFound();
 
-            UserUpdateValidator validator = new UserUpdateValidator(_db);
+            // Pass the user ID to the validator
+            UserUpdateValidator validator = new UserUpdateValidator(_db, id);
             // Validate the incoming userRequest, not the existingUser
-            ValidationResult result = validator.Validate(userRequest);
+            ValidationResult result = await validator.ValidateAsync(userRequest); // Use async validation
             if (!result.IsValid)
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage).ToList());
+                // Return 400 Bad Request with validation errors
+                return BadRequest(new { Errors = result.Errors.Select(x => x.ErrorMessage).ToList() });
 
             // Update fields only if they are provided in the request
-            if (!string.IsNullOrWhiteSpace(userRequest.Name))
-                existingUser.Name = userRequest.Name;
+            // Name is not updated here based on current frontend
+            // if (!string.IsNullOrWhiteSpace(userRequest.Name))
+            //     existingUser.Name = userRequest.Name;
             if (!string.IsNullOrWhiteSpace(userRequest.Email))
             {
-                 // Check if email is changing and if it's already taken by another user
-                 if (userRequest.Email != existingUser.Email && await _db.Users.AnyAsync(u => u.Email == userRequest.Email && u.Id != id))
-                 {
-                     return BadRequest(new { Errors = new List<string> { "Email already in use by another account." } });
-                 }
+                 // Check if email is changing and if it's already taken by another user (Validator handles this now)
+                 // if (userRequest.Email != existingUser.Email && await _db.Users.AnyAsync(u => u.Email == userRequest.Email && u.Id != id))
+                 // {
+                 //     return BadRequest(new { Errors = new List<string> { "Email already in use by another account." } });
+                 // }
                 existingUser.Email = userRequest.Email;
             }
             if (!string.IsNullOrWhiteSpace(userRequest.Phone))
                 existingUser.Phone = userRequest.Phone;
+            // Only hash and update password if a new one is provided
             if (!string.IsNullOrWhiteSpace(userRequest.Password))
                 existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
 
@@ -146,7 +150,7 @@ namespace Backend.Controllers
         [HttpDelete("user/{id}")]
         public async Task<ActionResult> DeleteUser(int id)
         {
-            Users user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
                 return NotFound();
             _db.Users.Remove(user);
@@ -161,7 +165,7 @@ namespace Backend.Controllers
 
         //for testing purposes only --- later admin use only
         [HttpGet("users")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")] 
         public async Task<ActionResult<List<Users>>> GetUsers()
         {
             List<Users> users = await _db.Users.ToListAsync();

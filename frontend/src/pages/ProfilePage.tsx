@@ -64,22 +64,25 @@ function ProfilePage() {
 
     const detailsForm = useForm<UpdateUserForm>({ // Átnevezés form -> detailsForm
         initialValues: {
-            // name: user?.name || '', // Name maradjon, hátha a backend kezeli
+            // Ensure initial values are always defined strings
             email: user?.email || '',
             phone: user?.phone || '',
             password: '',
             confirmPassword: '',
         },
         validate: {
-            email: (value) => (/^\\S+@\\S+$/.test(value) ? null : 'Invalid email'),
+            // Improved email regex
+            email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Invalid email format'),
             phone: (value) => (value && value.trim().length >= 6 ? null : 'Phone number seems too short'), // Ellenőrizzük, hogy van-e érték
-            password: (value) => { // values paraméter eltávolítva
+            password: (value) => {
+                // Only validate password length if a password is entered
                 if (value && value.length < 6) {
                     return 'Password must be at least 6 characters long';
                 }
                 return null;
             },
             confirmPassword: (value, values) => {
+                // Only validate confirmation if a password is entered
                 if (values.password && value !== values.password) {
                     return 'Passwords do not match';
                 }
@@ -92,9 +95,9 @@ function ProfilePage() {
      useEffect(() => {
         if (user) {
             detailsForm.setValues({ // form -> detailsForm
-                // name: user.name,
-                email: user.email,
-                phone: user.phone,
+                // Ensure values are strings
+                email: user.email || '',
+                phone: user.phone || '',
                 password: '',
                 confirmPassword: '',
             });
@@ -112,62 +115,70 @@ function ProfilePage() {
 
     // --- Handlers ---
     const handleUpdateProfile = async (values: UpdateUserForm) => {
-        // if (!user) return; // Ezt a külső if user ellenőrzés kezeli
+        if (!user) return; // Added guard clause
         setDetailsLoading(true);
         setDetailsError(null);
         setDetailsSuccess(null);
 
-        // Pontosabb típus használata
+        // Payload matches backend UserRequest (email, phone, optional password)
         const updateData: UpdateProfilePayload = {
             email: values.email,
             phone: values.phone,
         };
 
-        if (values.password && values.password === values.confirmPassword) {
-            updateData.password = values.password; // Nagybetűs 'P'
-        } else if (values.password && values.password !== values.confirmPassword) {
-             setDetailsError("Passwords do not match.");
-             setDetailsLoading(false);
-             return;
+        // Only include password if it's provided and matches confirmation
+        if (values.password) {
+            if (values.password.length < 6) {
+                setDetailsError("Password must be at least 6 characters long.");
+                setDetailsLoading(false);
+                return;
+            }
+            if (values.password === values.confirmPassword) {
+                updateData.password = values.password;
+            } else {
+                 setDetailsError("Passwords do not match.");
+                 setDetailsLoading(false);
+                 return;
+            }
         }
 
         try {
-            // Végpont módosítása: /api/user/user/{id} -> /api/user/update (feltételezve, hogy ez a biztonságos, authentikált végpont)
-            await apiCall<void>('/api/user/update', { // Végpont módosítva
+            // Correct endpoint: /api/user/user/{id}
+            await apiCall<void>(`/api/user/user/${user.id}`, {
                 method: 'PUT',
                 data: updateData,
             });
             setDetailsSuccess('Profile updated successfully!');
-            await checkAuthStatus(); // Újra lekérdezi a /me végpontot
+            await checkAuthStatus(); // Refresh user data
 
         } catch (err) {
+            // Error handling improved in apiCall, but keep specific message here
             setDetailsError(err instanceof Error ? err.message : 'Failed to update profile.');
         } finally {
             setDetailsLoading(false);
-            detailsForm.setFieldValue('password', ''); // form -> detailsForm
-            detailsForm.setFieldValue('confirmPassword', ''); // form -> detailsForm
+            // Clear password fields after attempt
+            detailsForm.setFieldValue('password', '');
+            detailsForm.setFieldValue('confirmPassword', '');
         }
     };
 
     // Rendelések lekérdezése
     const fetchOrders = useCallback(async () => {
-        // if (!user) return; // Ezt a külső if user ellenőrzés kezeli
+        if (!user) return; // Added guard clause
         setOrdersLoading(true);
         setOrdersError(null);
         setCancelError(null); // Törlési üzenetek törlése
         setCancelSuccess(null);
         try {
-            // Végpont módosítása: /api/user/my-orders -> /orders/my (feltételezve, hogy ez a helyes végpont)
-            const userOrders = await apiCall<OrderData[]>('/orders/my');
-            // Itt lehetne a backend válaszát átalakítani, ha szükséges
-            // Pl. hozzáadni a vetítés dátumát/film címét a jegyekhez, ha a backend nem adja meg közvetlenül
+            // Correct endpoint: /api/user/my-orders
+            const userOrders = await apiCall<OrderData[]>('/api/user/my-orders');
             setOrders(userOrders);
         } catch (err) {
             setOrdersError(err instanceof Error ? err.message : "Failed to fetch orders.");
         } finally {
             setOrdersLoading(false);
         }
-    }, []); // user függőség kivéve, mert a külső if user kezeli
+    }, [user]); // Added user dependency
 
     // Rendelés törlése
      const handleCancelOrder = async (orderId: number) => {

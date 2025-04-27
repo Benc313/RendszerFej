@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +29,14 @@ builder.Services.AddDbContext<dbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddControllers();
+// Configure JSON options to handle cycles
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // Or ReferenceHandler.Preserve
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull; // Optional: Ignore nulls
+    });
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -64,15 +72,15 @@ builder.Services.AddAuthorization(options =>
 {
 	options.AddPolicy("AdminPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Admin");
+		policy.RequireClaim("role", "Admin"); // Already correct
 	});
 	options.AddPolicy("CashierPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Cashier");
+		policy.RequireClaim("role", "Cashier"); // Already correct
 	});
 	options.AddPolicy("UserPolicy", policy =>
 	{
-		policy.RequireClaim("role", "User");
+		policy.RequireClaim("role", "User"); // Already correct
 	});
 });
 var app = builder.Build();
@@ -81,6 +89,7 @@ using (var scope = app.Services.CreateScope())
 {
 	var dbContext = scope.ServiceProvider.GetRequiredService<dbContext>();
 	dbContext.Database.Migrate();
+    DataSeeder.SeedData(dbContext);
 }
 
 // Configure the HTTP request pipeline.
@@ -95,11 +104,11 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Use CORS policy
-app.UseCors("AllowFrontend");
+app.UseCors("AllowFrontend"); // Ensure CORS is before Auth
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers(); 
 
-app.Run(); 
+app.Run();

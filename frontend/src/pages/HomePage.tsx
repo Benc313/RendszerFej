@@ -3,37 +3,37 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth
 
 function HomePage() {
-    const { user } = useAuth(); // Get user info
+    const { user } = useAuth(); // Felhasználói adatok lekérése
 
     return (
         <Container size="md" mt="xl">
             <Title order={1} ta="center" mb="lg">
-                Welcome to Jegymester!
+                Üdvözlünk a Jegymesternél!
             </Title>
             <Text ta="center" mb="xl">
-                Your one-stop shop for movie tickets. Browse our latest screenings and book your seats today.
+                A mozijegyek egy helyen. Böngéssz a legújabb vetítéseink között és foglald le a helyed még ma.
             </Text>
             <Group justify="center">
                 <Button component={Link} to="/movies" size="lg">
-                    Browse Movies
+                    Filmek Böngészése
                 </Button>
-                {!user && ( // Show login/register only if not logged in
+                {!user && ( // Bejelentkezés/Regisztráció gombok, ha nincs bejelentkezve
                     <>
                         <Button component={Link} to="/login" variant="default" size="lg">
-                            Login
+                            Bejelentkezés
                         </Button>
                         <Button component={Link} to="/register" variant="outline" size="lg">
-                            Register
+                            Regisztráció
                         </Button>
                     </>
                 )}
-                 {user && ( // Show profile link if logged in
+                 {user && ( // Profil link, ha be van jelentkezve
                     <Button component={Link} to="/profile" variant="light" size="lg">
-                        My Profile
+                        Profilom
                     </Button>
                 )}
             </Group>
-            {/* You could add featured movies or upcoming screenings here later */}
+            {/* Ide később bekerülhetnek kiemelt filmek vagy közelgő vetítések */}
         </Container>
     );
 }

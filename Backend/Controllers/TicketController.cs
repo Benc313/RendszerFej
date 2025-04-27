@@ -16,7 +16,7 @@ public class TicketController : ControllerBase
 	}
 
 	[HttpGet("validate/{id}")]
-	[Authorize(Roles = "Admin, Cashier")]
+	[Authorize(Roles = "Admin, Cashier")] 
 	public async Task<ActionResult> ValidateTicket(int id)
 	{
 		//only cashier and admin can validate tickets

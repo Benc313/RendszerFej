@@ -4,6 +4,7 @@ using expenseTracker.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq; // Ensure LINQ is included
 
 namespace Backend.Controllers;
 
@@ -29,17 +30,19 @@ public class MovieController : ControllerBase
     public async Task<ActionResult<MovieResponse>> GetMovie(int id)
     {
         var movie = await _db.Movies
-            .Include(m => m.Screenings)
+            .Include(m => m.Screenings) 
+                .ThenInclude(s => s.Terem) 
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (movie == null)
             return NotFound(new { Error = "Movie not found." });
 
+     
         return Ok(new MovieResponse(movie));
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")] 
     public async Task<ActionResult<MovieResponse>> CreateMovie(MovieRequest movieRequest)
     {
         if (string.IsNullOrWhiteSpace(movieRequest.Title) || string.IsNullOrWhiteSpace(movieRequest.Description))
@@ -58,7 +61,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")] // Already correct
     public async Task<IActionResult> UpdateMovie(int id, MovieRequest movieRequest) 
     {
         var movieToUpdate = await _db.Movies.FindAsync(id);
@@ -81,7 +84,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-   [Authorize(Roles = "Admin")]
+   [Authorize(Roles = "Admin")] // Already correct
     public async Task<ActionResult> DeleteMovie(int id) 
     {
         var movie = await _db.Movies.Include(m => m.Screenings).FirstOrDefaultAsync(m => m.Id == id);
