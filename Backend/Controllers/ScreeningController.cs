@@ -26,7 +26,6 @@ namespace Backend.Controllers
                 .Include(s => s.Movie)
                 .Include(s => s.Terem)
                 .ToListAsync();
-            Console.WriteLine("Vetitesek: " + vetitesek.Count);
             return Ok(vetitesek.Select(v => new ScreeningResponse(v)).ToList());
         }
 
@@ -70,11 +69,11 @@ namespace Backend.Controllers
                 await _db.SaveChangesAsync();
                 return Ok(new ScreeningResponse(screening));
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException)
             {
                 return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the screening. Please try again later." } });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later."  } });
             }

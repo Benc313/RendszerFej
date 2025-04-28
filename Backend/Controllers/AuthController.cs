@@ -73,7 +73,8 @@ public class AuthController : ControllerBase
 
 		// Generate JWT token
 		var tokenHandler = new JwtSecurityTokenHandler();
-		var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]);
+		var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured.");
+		var key = Encoding.UTF8.GetBytes(secret);
 		var tokenDescriptor = new SecurityTokenDescriptor()
 		{
 			Subject = new System.Security.Claims.ClaimsIdentity(new[]

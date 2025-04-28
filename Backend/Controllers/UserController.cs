@@ -107,7 +107,7 @@ namespace Backend.Controllers
                 return NotFound();
 
             // Pass the user ID to the validator
-            UserUpdateValidator validator = new UserUpdateValidator(_db, id);
+            UserUpdateValidator validator = new UserUpdateValidator(_db);
             // Validate the incoming userRequest, not the existingUser
             ValidationResult result = await validator.ValidateAsync(userRequest); // Use async validation
             if (!result.IsValid)
@@ -174,23 +174,4 @@ namespace Backend.Controllers
     }
 }
 
-// ÚJ DTO (pl. a Messages mappában)
-// namespace Backend.Messages;
-// public class MeResponse
-// {
-//     public int Id { get; set; }
-//     public string Name { get; set; }
-//     public string Email { get; set; }
-//     public string Role { get; set; }
-//     public string Phone { get; set; } // Opcionális, ha kell a frontendnek
-//     // BannedTill, stb. ha szükséges
 
-//     public MeResponse(Users user)
-//     {
-//         Id = user.Id;
-//         Name = user.Name;
-//         Email = user.Email;
-//         Role = user.Role;
-//         Phone = user.Phone;
-//     }
-// }

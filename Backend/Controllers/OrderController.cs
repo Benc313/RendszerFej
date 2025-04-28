@@ -45,7 +45,7 @@ public class OrderController : ControllerBase
             {
                 user = await _db.Users.FirstOrDefaultAsync(u => u.Id == orderRequest.UserId);
             }
-
+            
             var order = new Orders(orderRequest, user);
             _db.Orders.Add(order);
 
@@ -125,12 +125,12 @@ public class OrderController : ControllerBase
             await _db.SaveChangesAsync();
             return NoContent(); // Success, no content to return
         }
-        catch (DbUpdateException ex)
+        catch (DbUpdateException)
         {
             // Log the exception details
             return StatusCode(500, new { Errors = new List<string> { "An error occurred while cancelling the order." } });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Log the exception details
             return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred." } });

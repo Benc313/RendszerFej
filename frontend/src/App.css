@@ -1,9 +1,15 @@
+/* filepath: c:\Users\kresz\source\repos\RendszerFej-1\frontend\src\App.css */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  /* Ezeket a szabályokat eltávolítjuk, hogy az AppShell jobban működjön */
+  /* max-width: 1280px; */
+  /* margin: 0 auto; */
+  /* padding: 2rem; */
+  /* text-align: center; */ /* Ezt már kikommenteltük */
+  width: 100%; /* Biztosítjuk, hogy a root kitöltse a szélességet */
+  min-height: 100vh; /* Biztosítjuk, hogy a root kitöltse a magasságot */
 }
+
+/* ... többi szabály (logo, card, stb.) változatlan maradhat, vagy később finomítható ... */
 
 .logo {
   height: 6em;

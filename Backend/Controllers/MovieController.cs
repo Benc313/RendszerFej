@@ -29,16 +29,18 @@ public class MovieController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<MovieResponse>> GetMovie(int id)
     {
-        var movie = await _db.Movies
-            .Include(m => m.Screenings) 
-                .ThenInclude(s => s.Terem) 
-            .FirstOrDefaultAsync(m => m.Id == id);
+        Movie? movie = await _db.Movies
+        .Include(m => m.Screenings) // Szükséges Include
+            .ThenInclude(s => s.Terem) // Szükséges Include
+        .Include(m => m.Screenings) // Újra Include a Tickets-hez
+            .ThenInclude(s => s.Tickets) // Szükséges Include a foglalt helyekhez
+        .FirstOrDefaultAsync(m => m.Id == id);
 
-        if (movie == null)
-            return NotFound(new { Error = "Movie not found." });
+    if (movie == null)
+        return NotFound(new { Error = "Movie not found." });
 
-     
-        return Ok(new MovieResponse(movie));
+    // A MovieResponse konstruktora kezeli a Screenings átalakítását
+    return Ok(new MovieResponse(movie));
     }
 
     [HttpPost]

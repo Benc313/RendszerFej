@@ -16,7 +16,7 @@ public class MeResponse
         Id = user.Id;
         Name = user.Name;
         Email = user.Email;
-        Role = user.Role; // Role from DB should be correct
+        Role = user.Role; 
         Phone = user.Phone;
         BannedTill = user.BannedTill;
     }
