@@ -35,25 +35,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Közvetlen user beállító függvény
     const setUserState = useCallback((userData: User | null) => {
-        // Ha a bannedTill string, konvertáljuk Date objektummá a kliens oldalon
-        // Bár a User interface string-et vár, a belső állapotban lehet Date is.
-        // Konzisztencia miatt maradjunk a stringnél, amit a backend küld.
-        /*
-        if (userData?.bannedTill && typeof userData.bannedTill === 'string') {
-            try {
-                userData.bannedTill = new Date(userData.bannedTill);
-            } catch (e) {
-                console.error("Error parsing bannedTill date:", e);
-                userData.bannedTill = null; // Hiba esetén nullázzuk
-            }
-        }
-        */
         setUser(userData);
     }, []);
 
     // --- Login Function Implementation ---
     const login = useCallback(async (email: string, password: string): Promise<User> => {
-        console.log("Attempting login...");
         try {
             // Javított végpont: /api/auth/login
             const loggedInUser = await apiCall<User>('/api/auth/login', {
@@ -62,47 +48,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
             setUserState(loggedInUser);
             return loggedInUser;
-        } catch (error) {
-            console.error("Login failed in AuthContext:", error);
+        } catch {
             setUserState(null);
-            throw error;
+            throw new Error('Login failed');
         }
     }, [setUserState]);
 
     // Kijelentkezés
     const logout = useCallback(async () => {
-        console.log("Attempting logout...");
         try {
             // Használjuk az apiCall-t a /api/auth/logout végpont hívásához
             await apiCall<void>('/api/auth/logout', { method: 'POST' });
-            console.log("Logout API call successful via apiCall");
-        } catch (error) {
+        } catch {
             // Az apiCall már kezeli a hiba logolását és notificationt
-            console.error("Logout failed:", error);
         } finally {
             setUser(null); // Kliens oldali állapot törlése mindenképp
-            console.log("User state set to null after logout attempt");
         }
     }, []);
 
     // Státusz ellenőrzése: Hívja a /api/user/me végpontot
     const checkAuthStatus = useCallback(async (): Promise<User | null> => {
-        console.log("Checking auth status via /api/user/me using apiCall...");
         setIsLoading(true);
         try {
             // Használjuk az apiCall-t a /api/user/me végpont hívásához
             const currentUser = await apiCall<User>('/api/user/me'); // Backend MeResponse -> User
             setUser(currentUser);
-            console.log("Auth status check successful via apiCall, user:", currentUser);
             return currentUser;
-        } catch (error) {
+        } catch {
             // Az apiCall már kezeli a hiba logolását és notificationt (pl. 401 esetén)
-            console.log("Auth status check failed via apiCall (likely not logged in)",error);
             setUser(null);
             return null;
         } finally {
             setIsLoading(false);
-            console.log("Auth status check finished.");
         }
     }, []);
 
@@ -118,6 +95,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         </AuthContext.Provider>
     );
 };
+
+// Export only the AuthProvider as default to avoid Fast Refresh warning
+export default AuthProvider;
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);

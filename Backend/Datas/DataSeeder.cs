@@ -26,32 +26,50 @@ namespace expenseTracker.Data
             context.Users.AddRange(users);
             context.SaveChanges(); // Save users first if needed, though not strictly necessary here
 
-            // Seed Movies
+            // Seed Movies (külföldi filmcímek, magyar leírásokkal)
             var movies = new[]
             {
-                new Movie { Title = "Inception", Description = "A thief who steals corporate secrets through the use of dream-sharing technology...", Duration = 148 },
-                new Movie { Title = "The Matrix", Description = "A computer hacker learns from mysterious rebels about the true nature of his reality...", Duration = 136 },
-                new Movie { Title = "Interstellar", Description = "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival...", Duration = 169 }
+                new Movie { Title = "Inception", Description = "Egy profi tolvaj képes belépni mások álmaiba, hogy ellopja a legféltettebb titkaikat.", Duration = 148 },
+                new Movie { Title = "The Godfather", Description = "A Corleone család felemelkedése és bukása a maffia világában.", Duration = 175 },
+                new Movie { Title = "Pulp Fiction", Description = "Különböző karakterek sorsa fonódik össze Los Angeles alvilágában.", Duration = 154 },
+                new Movie { Title = "The Shawshank Redemption", Description = "Egy ártatlanul elítélt férfi reményről és kitartásról szóló története a börtön falai között.", Duration = 142 },
+                new Movie { Title = "Forrest Gump", Description = "Egy egyszerű férfi rendkívüli életútja az amerikai történelem nagy pillanataiban.", Duration = 142 },
+                new Movie { Title = "The Matrix", Description = "Egy programozó felfedezi, hogy a valóság, amit ismer, csak illúzió.", Duration = 136 },
+                new Movie { Title = "Interstellar", Description = "Űrhajósok egy féreglyukon keresztül próbálják megmenteni az emberiséget.", Duration = 169 },
+                new Movie { Title = "Fight Club", Description = "Egy kiégett irodista és egy titokzatos férfi földalatti harci klubot alapít.", Duration = 139 }
             };
             context.Movies.AddRange(movies);
             context.SaveChanges();
 
-            // Seed Rooms (Terems)
+            // Seed Rooms (Terems) - több terem
             var rooms = new[]
             {
                 new Terem { Room = "A", Seats = 50 },
-                new Terem { Room = "B", Seats = 75 }
+                new Terem { Room = "B", Seats = 75 },
+                new Terem { Room = "C", Seats = 60 },
+                new Terem { Room = "D", Seats = 40 }
             };
             context.Terems.AddRange(rooms);
             context.SaveChanges();
 
-            // Seed Screenings
-            var screenings = new[]
+            // Seed Screenings - minden film több napon, több teremben
+            var screenings = new System.Collections.Generic.List<Screening>();
+            int priceBase = 2000;
+            for (int m = 0; m < movies.Length; m++)
             {
-                new Screening { MovieId = movies[0].Id, TeremId = rooms[0].Id, ScreeningDate = DateTime.UtcNow.AddDays(1).AddHours(2), Price = 2500 },
-                new Screening { MovieId = movies[1].Id, TeremId = rooms[1].Id, ScreeningDate = DateTime.UtcNow.AddDays(1).AddHours(5), Price = 2200 },
-                new Screening { MovieId = movies[0].Id, TeremId = rooms[1].Id, ScreeningDate = DateTime.UtcNow.AddDays(2).AddHours(3), Price = 2500 }
-            };
+                for (int day = 1; day <= 3; day++) // 3 nap
+                {
+                    for (int r = 0; r < rooms.Length; r++)
+                    {
+                        screenings.Add(new Screening {
+                            MovieId = movies[m].Id,
+                            TeremId = rooms[r].Id,
+                            ScreeningDate = DateTime.UtcNow.Date.AddDays(day + m).AddHours(14 + r * 2), // minden film más napon, más teremben, más időpontban
+                            Price = priceBase + (m * 100) + (r * 50)
+                        });
+                    }
+                }
+            }
             context.Screenings.AddRange(screenings);
             context.SaveChanges();
         }

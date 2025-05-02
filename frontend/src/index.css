@@ -1,52 +1,31 @@
 /* filepath: c:\Users\kresz\source\repos\RendszerFej-1\frontend\src\index.css */
 :root {
-  /* ... unchanged root styles ... */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  /* Sötét téma alapbeállítások */
-  color-scheme: dark; /* Jelzi a böngészőnek, hogy sötét témát használunk */
-  color: rgba(255, 255, 255, 0.87); /* Világosabb alapértelmezett szövegszín */
-  background-color: #1a1a1a; /* Sötétebb háttérszín */
-
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #1a1a1a;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ... unchanged a styles ... */
 a {
   font-weight: 500;
-  /* Az alap link színt a Mantine témára bízzuk */
-  /* color: #646cff; */
   text-decoration: inherit;
 }
+
 a:hover {
-  /* A hover színt is a Mantine témára bízzuk */
-  /* color: #535bf2; */
 }
 
-
-/* ... unchanged body styles ... */
 body {
   margin: 0;
-  /* display: flex; */ /* Kikommentelve marad */
-  /* place-items: center; */ /* Kikommentelve marad */
   min-width: 320px;
   min-height: 100vh;
 }
 
-
-/* Eltávolítjuk a globális h1-h6 szabályt, a Mantine téma kezeli */
-/*
-h1, h2, h3, h4, h5, h6 {
-   color: #f0e68c;
-}
-*/
-
-/* ... rest of the styles unchanged ... */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -54,18 +33,15 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  /* Az alap gomb stílust a Mantine témára bízzuk */
-  /* background-color: #1a1a1a; */
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
-
-/* A light media queryt eltávolíthatjuk vagy átírhatjuk, ha csak sötét témát akarunk */
-/* @media (prefers-color-scheme: light) { ... } */

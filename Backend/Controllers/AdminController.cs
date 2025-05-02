@@ -93,4 +93,20 @@ public class AdminController : ControllerBase
         }
     }
 
+    [HttpPost("unban/{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UnbanUser(int id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+      if (user == null)
+          return NotFound(new { Errors = new List<string> { "User not found." } });
+
+      if (user.BannedTill == null)
+            return BadRequest(new { Errors = new List<string> { "User is not banned." } });
+
+     user.BannedTill = null;
+     await _db.SaveChangesAsync();
+      return Ok(new { Message = "User unbanned successfully." });
+}
+
 }

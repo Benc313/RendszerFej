@@ -65,58 +65,55 @@ function RegisterPage() {
 
     return (
         <Container size={420} my={40}>
-            <Title ta="center">
-                Register
-            </Title>
-
+            <Title ta="center" mb={20}>Regisztráció</Title>
             <Paper withBorder shadow="md" p={30} mt={30} radius="md">
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     {error && (
-                        <Alert icon={<IconAlertCircle size="1rem" />} title="Registration Error" color="red" withCloseButton onClose={() => setError(null)} mb="md">
+                        <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a regisztrációkor" color="red" withCloseButton onClose={() => setError(null)} mb="md">
                             {error}
                         </Alert>
                     )}
                     <TextInput
-                        label="Name"
-                        placeholder="Your name"
+                        label="Név"
+                        placeholder="Teljes név"
                         required
                         {...form.getInputProps('name')}
                         mb="sm"
                     />
                     <TextInput
-                        label="Email"
-                        placeholder="you@mantine.dev"
+                        label="Email cím"
+                        placeholder="email@pelda.hu"
                         required
                         {...form.getInputProps('email')}
                         mb="sm"
                     />
-                     <TextInput
-                        label="Phone Number"
+                    <TextInput
+                        label="Telefonszám"
                         placeholder="+36..."
                         required
                         {...form.getInputProps('phoneNumber')}
                         mb="sm"
                     />
                     <PasswordInput
-                        label="Password"
-                        placeholder="Your password"
+                        label="Jelszó"
+                        placeholder="Jelszó"
                         required
                         {...form.getInputProps('password')}
                         mb="sm"
                     />
                     <PasswordInput
-                        label="Confirm Password"
-                        placeholder="Confirm password"
+                        label="Jelszó megerősítése"
+                        placeholder="Jelszó újra"
                         required
                         {...form.getInputProps('confirmPassword')}
                         mb="lg"
                     />
                     <Group justify="space-between" mt="lg">
-                         <Button onClick={() => navigate('/login')} variant="subtle" size="xs">
-                            Already have an account? Login
+                        <Button onClick={() => navigate('/login')} variant="subtle" size="xs">
+                            Van már fiókod? Jelentkezz be
                         </Button>
                         <Button type="submit" loading={isLoading}>
-                            Register
+                            Regisztráció
                         </Button>
                     </Group>
                 </form>

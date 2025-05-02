@@ -1,11 +1,9 @@
-import { notifications } from '@mantine/notifications';
 
-// Alap URL a backendhez (Vite proxy miatt relatív útvonal is működhet,
-// de a teljes URL egyértelműbb lehet)
+
 // Removed unused API_BASE_URL constant
 
 interface ApiCallOptions extends RequestInit {
-    data?: unknown; // Adatok küldéséhez (pl. POST, PUT)
+    data?: unknown;
 }
 
 /**
@@ -17,107 +15,86 @@ interface ApiCallOptions extends RequestInit {
  * @throws Hiba esetén dob egy Error objektumot a hibaüzenettel.
  */
 export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {}): Promise<T> {
-    // const url = `${API_BASE_URL}${endpoint}`; // Teljes URL összeállítása - Modified
-    const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`; // Ensure endpoint starts with /
+    const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const { data, ...restOptions } = options;
     const config: RequestInit = {
-        method: options.method || (options.data ? 'POST' : 'GET'), // Alapértelmezett metódus
+        method: options.method || (data ? 'POST' : 'GET'),
         headers: {
             'Content-Type': 'application/json',
             ...options.headers,
         },
-        credentials: 'include', // Cookie-k küldése/fogadása
-        ...options,
+        credentials: 'include',
+        ...restOptions,
     };
 
-    // Ha van 'data' opció, azt JSON stringgé alakítjuk és beállítjuk a body-ba
-    if (options.data) {
-        config.body = JSON.stringify(options.data);
+    if (data) {
+        config.body = JSON.stringify(data);
     }
 
-    console.log(`API Call: ${config.method} ${url}`, options.data ? `with data: ${JSON.stringify(options.data)}` : ''); // Debug log
+    // eslint-disable-next-line no-console
+    console.log(`API Call: ${config.method} ${url}`, data ? `with data: ${JSON.stringify(data)}` : '');
 
     try {
         const response = await fetch(url, config);
 
-        console.log(`API Response Status: ${response.status} for ${url}`); // Debug log
+        // eslint-disable-next-line no-console
+        console.log(`API Response Status: ${response.status} for ${url}`);
 
-        // Speciális kezelés a 204 No Content válaszra (pl. Logout, Delete)
         if (response.status === 204) {
-            return undefined as T; // Nincs tartalom, undefined-ot adunk vissza
+            return undefined as T;
         }
 
-        // Check Content-Type before assuming JSON
-        const contentType = response.headers.get("content-type");
-        let responseData: any; // Use 'any' temporarily
+        const contentType = response.headers.get('content-type');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let responseData: any;
 
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            responseData = await response.json(); // Parse JSON only if header indicates it
+        if (contentType && contentType.includes('application/json')) {
+            responseData = await response.json();
         } else {
-             // If not JSON, try to get text for error messages, but don't assume JSON structure
-             const textResponse = await response.text();
-             // Try to parse as JSON in case the content-type header was missing/wrong
-             try {
-                 responseData = JSON.parse(textResponse);
-             } catch {
-                 // If parsing fails, treat the text as the message
-                 responseData = { message: textResponse };
-             }
+            const textResponse = await response.text();
+            try {
+                responseData = JSON.parse(textResponse);
+            } catch {
+                responseData = { message: textResponse };
+            }
         }
 
         if (!response.ok) {
-            // Próbáljuk meg kinyerni a hibaüzenetet a backend válaszából
             let errorMessage = `HTTP error ${response.status}: ${response.statusText}`;
-            // Use optional chaining and check types more carefully
             if (responseData && typeof responseData === 'object') {
-                // Handle ASP.NET Core validation problem details
-                 if (typeof responseData.errors === 'object' && responseData.errors !== null) {
-                    const validationErrors = Object.values(responseData.errors).flat(); // Get all error messages
+                if (typeof responseData.errors === 'object' && responseData.errors !== null) {
+                    const validationErrors = Object.values(responseData.errors).flat();
                     if (validationErrors.length > 0 && validationErrors.every(e => typeof e === 'string')) {
                         errorMessage = validationErrors.join(', ');
                     }
-                 }
-                 // Handle custom error messages or other structures
-                 else if (typeof responseData.message === 'string') {
-                    errorMessage = responseData.message; // Backend által küldött üzenet
+                } else if (typeof responseData.message === 'string') {
+                    errorMessage = responseData.message;
                 } else if (Array.isArray(responseData.errors) && responseData.errors.every((e: unknown) => typeof e === 'string')) {
-                    errorMessage = responseData.errors.join(', '); // Backend validációs hibák (ha lista)
+                    errorMessage = responseData.errors.join(', ');
                 } else if (typeof responseData.title === 'string') {
-                    errorMessage = responseData.title; // ASP.NET Core probléma részletek címe
-                } else if (typeof responseData.Message === 'string') { // Check for PascalCase 'Message'
-                     errorMessage = responseData.Message;
-                 }
+                    errorMessage = responseData.title;
+                } else if (
+                    typeof responseData === 'object' &&
+                    responseData !== null &&
+                    'Message' in responseData &&
+                    typeof (responseData as Record<string, unknown>).Message === 'string'
+                ) {
+                    errorMessage = (responseData as Record<string, unknown>).Message as string;
+                }
             } else if (typeof responseData === 'string') {
-                 // Handle cases where responseData might be a plain string (e.g., from response.text())
-                 errorMessage = responseData;
+                errorMessage = responseData;
             }
-
-            console.error('API Error:', errorMessage, 'Response Data:', responseData); // Részletesebb logolás
-
-            // Értesítés megjelenítése
-            notifications.show({
-                title: 'API Error',
-                message: errorMessage,
-                color: 'red',
-            });
 
             throw new Error(errorMessage);
         }
 
-        console.log(`API Success: ${config.method} ${url}`, responseData); // Debug log
+        // eslint-disable-next-line no-console
+        console.log(`API Success: ${config.method} ${url}`, responseData);
         return responseData as T;
-
     } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(`API Call failed for ${url}:`, error);
 
-        // Ha nem HTTP hiba volt (pl. hálózati hiba), akkor is jelenítsünk meg értesítést
-        if (!(error instanceof Error && error.message.startsWith('HTTP error'))) {
-             notifications.show({
-                title: 'Network or Application Error',
-                message: error instanceof Error ? error.message : 'An unknown error occurred',
-                color: 'red',
-            });
-        }
-        // Az eredeti vagy az általunk generált Error objektumot továbbdobjuk
         throw error;
     }
 }

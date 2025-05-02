@@ -50,34 +50,31 @@ function LoginPage() {
 
     return (
         <Container size={420} my={40}>
-            <Title ta="center">
-                 Bejelentkezés
-            </Title>
-
+            <Title ta="center" mb={20}>Bejelentkezés</Title>
             <Paper withBorder shadow="md" p={30} mt={30} radius="md">
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     {error && (
-                        <Alert icon={<IconAlertCircle size="1rem" />} title="Bejelentkezési Hiba" color="red" withCloseButton onClose={() => setError(null)} mb="md">
+                        <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a bejelentkezéskor" color="red" withCloseButton onClose={() => setError(null)} mb="md">
                             {error}
                         </Alert>
                     )}
                     <TextInput
-                        label="Email"
-                        placeholder="neved@email.com"
+                        label="Email cím"
+                        placeholder="email@pelda.hu"
                         required
                         {...form.getInputProps('email')}
                         mb="sm"
                     />
                     <PasswordInput
                         label="Jelszó"
-                        placeholder="Jelszavad"
+                        placeholder="Jelszó"
                         required
                         {...form.getInputProps('password')}
                         mb="lg"
                     />
-                     <Group justify="space-between" mt="lg">
-                         <Button onClick={() => navigate('/register')} variant="subtle" size="xs">
-                             Nincs még fiókod? Regisztrálj
+                    <Group justify="space-between" mt="lg">
+                        <Button onClick={() => navigate('/register')} variant="subtle" size="xs">
+                            Nincs még fiókod? Regisztrálj
                         </Button>
                         <Button type="submit" loading={isLoading}>
                             Bejelentkezés

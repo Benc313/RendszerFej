@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 // Select, Radio, Stack hozzáadva az importokhoz
-import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, Tabs, NumberInput, Box, List, Select, Radio, Stack } from '@mantine/core';
+import { Table, Button, Title, Paper, Alert, Loader, Group, TextInput, Tabs, NumberInput, Box, List, Select, Radio, Stack } from '@mantine/core';
 import { IconAlertCircle, IconTicket, IconListDetails, IconShoppingCartPlus, IconCheck } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -11,8 +11,8 @@ import { notifications } from '@mantine/notifications';
 // --- Rendelés Interfész (OrderResponse alapján) ---
 interface OrderData {
     id: number;
-    phone?: string | null; // Telefonszám (opcionális)
-    email?: string | null; // Email cím (opcionális)
+    phone?: string | null; // Telefonszám (kisbetűs)
+    email?: string | null; // Email cím (kisbetűs)
     userId?: number | null; // Felhasználó ID (opcionális, ha regisztrált)
     totalPrice: number; // Teljes ár
     tickets: TicketData[]; // Jegyek listája
@@ -109,8 +109,8 @@ function CashierDashboard() {
         setOrdersLoading(true);
         setOrdersError(null);
         try {
-            // GET kérés a /api/orders végpontra
-            const data = await apiCall<OrderData[]>('/api/orders');
+            // GET kérés a /api/order végpontra
+            const data = await apiCall<OrderData[]>('/api/order');
             setOrders(data);
         } catch (err) {
             setOrdersError(err instanceof Error ? err.message : "Rendelések lekérdezése sikertelen.");
@@ -124,27 +124,16 @@ function CashierDashboard() {
         setScreeningsLoading(true);
         setScreeningsError(null);
         try {
-            // Backend válasz (BackendScreeningResponse) lekérdezése
-            // Figyelem: A BackendScreeningResponse struktúrát használjuk itt is, mint az AdminDashboardban
-            interface BackendScreeningResponse {
-                id: number;
-                screeningDate: string;
-                price: number;
-                movie?: { id: number; title: string; description: string; duration: number; }; // Movie lehet opcionális
-                terem?: { id: number; roomName: string; seats: number; }; // Terem lehet opcionális
-            }
-            const data = await apiCall<BackendScreeningResponse[]>('/api/screenings');
-            // Átalakítás a frontend Select komponenshez és állapothoz (ScreeningOption)
-            // Szűrés és biztonságos hozzáférés
-            const options: ScreeningOption[] = data
-                .filter(s => s.movie && s.terem) // Csak azokat tartjuk meg, ahol van film és terem adat
-                .map(s => ({
-                    id: s.id,
-                    movieTitle: s.movie!.title, // Biztosak lehetünk benne, hogy létezik a filter miatt
-                    roomName: s.terem!.roomName, // Biztosak lehetünk benne, hogy létezik a filter miatt
-                    screeningDate: s.screeningDate,
-                    price: s.price,
-                }));
+            // A backend ScreeningResponse szerkezete:
+            // { id, screeningDate, price, movieName, roomName, ... }
+            const data = await apiCall<{ id: number; screeningDate: string; price: number; movieName: string; roomName: string; }[]>('/api/screening');
+            const options: ScreeningOption[] = data.map(s => ({
+                id: s.id,
+                movieTitle: s.movieName,
+                roomName: s.roomName,
+                screeningDate: s.screeningDate,
+                price: s.price,
+            }));
             setScreenings(options);
         } catch (err) {
             setScreeningsError(err instanceof Error ? err.message : "Vetítések lekérdezése sikertelen.");
@@ -160,8 +149,8 @@ function CashierDashboard() {
         setValidationError(null);
         // setValidationSuccess(null); // Felesleges, notificationt használunk
         try {
-            // GET kérés a /api/tickets/validate/{id} végpontra
-            const response = await apiCall<{ message: string }>(`/api/tickets/validate/${values.ticketId}`, {
+            // GET kérés a /api/ticket/validate/{id} végpontra
+            const response = await apiCall<{ message: string }>(`/api/ticket/validate/${values.ticketId}`, {
                 method: 'GET',
             });
             notifications.show({ // Sikeres érvényesítés értesítés
@@ -199,8 +188,8 @@ function CashierDashboard() {
         };
 
         try {
-            // POST kérés a /api/orders végpontra
-            const response = await apiCall<OrderData>('/api/orders', {
+            // POST kérés a /api/order végpontra
+            const response = await apiCall<OrderData>('/api/order', {
                 method: 'POST',
                 data: orderRequest,
             });
@@ -245,7 +234,6 @@ function CashierDashboard() {
     // --- Táblázat Sorok Generálása ---
     // Rendelések táblázat sorai
     const orderRows = orders.map((order) => (
-        // Biztosítjuk, hogy ne legyen felesleges whitespace a Table.Tr körül
         <Table.Tr key={order.id}>
             <Table.Td>{order.id}</Table.Td>
             <Table.Td>{order.userId ?? 'Vendég'}</Table.Td>

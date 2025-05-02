@@ -27,6 +27,7 @@ public class OrderController : ControllerBase
         List<Orders> orders = await _db.Orders
             .Include(o => o.Tickets)
             .ThenInclude(t => t.Screening)
+            .Include(o => o.User) // EZ HOZZÁADVA!
             .ToListAsync();
         
         return Ok(orders.Select(o => new OrderResponse(o)).ToList());

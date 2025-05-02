@@ -1,28 +1,40 @@
-import { useState, useEffect, useCallback } from 'react'; // React importálása
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiCall } from '../services/api';
-import { Paper, Title, TextInput, PasswordInput, Button, Group, Alert, Text, Loader, Table, Tabs, Box } from '@mantine/core'; // Table, Tabs, Box importálása
+import { Paper, Title, TextInput, PasswordInput, Button, Group, Alert, Text, Loader, Table, Tabs, Box, List } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconAlertCircle, IconUserCircle, IconTicket, IconTrash, IconCircleCheck } from '@tabler/icons-react'; // Új ikonok importálása, IconCircleCheck hozzáadva
+import { IconAlertCircle, IconUserCircle, IconTicket, IconTrash, IconCircleCheck } from '@tabler/icons-react';
 
-// --- Interfaces based on Backend DTOs ---
-// Interface a backend UserRequest alapján (kiegészítve a jelszó megerősítéssel)
+// --- Interfaces ---
 interface UpdateUserForm {
-    // name: string; // A backend UserRequest nem várja a nevet, de a controller kezeli. Maradhat a formban.
     email: string;
-    phone: string; // Backend UserRequest 'Phone'-ként várja, de a Users modell 'Phone'-ként tárolja. Frontend 'phone'-ként kezeli.
+    phone: string;
     password?: string;
     confirmPassword?: string;
 }
 
-// Interface a profilfrissítéshez küldendő adatokhoz
 interface UpdateProfilePayload {
     email: string;
     phone: string;
-    password?: string; // Csak akkor küldjük, ha van új jelszó
+    password?: string;
 }
 
-// Interface a backend OrderResponse alapján
+interface NestedScreeningData {
+    id: number;
+    screeningDate: string;
+    movieName: string;
+    roomName: string;
+}
+
+interface TicketData {
+    id: number;
+    seatNumber: number;
+    price: number;
+    status: string;
+    screeningId: number;
+    screening?: NestedScreeningData; // Feltételezzük, hogy a backend ezt beágyazza
+}
+
 interface OrderData {
     id: number;
     phone?: string | null;
@@ -30,59 +42,43 @@ interface OrderData {
     userId?: number | null;
     totalPrice: number;
     tickets: TicketData[];
-    // Add screening details if needed/available from backend
-    // Ezeket a backendnek kellene szolgáltatnia a /orders/my végponton
-    screeningDate?: string; // Example: Add if backend provides this
-    movieTitle?: string;    // Example: Add if backend provides this
 }
 
-// Interface a backend TicketResponse alapján
-interface TicketData {
+// Új: ScreeningDetails típus a /api/screening/{id} válaszhoz
+interface ScreeningDetails {
     id: number;
-    seatNumber: number;
-    price: number;
-    status: string; // e.g., "Purchased", "Validated", "Cancelled"
-    screeningId: number;
-    // Add screening details if needed/available from backend
-    screeningDate?: string; // Example: Add if backend provides this
-    movieTitle?: string;    // Example: Add if backend provides this
+    screeningDate: string;
+    movieName: string;
+    roomName: string;
 }
 // --- End Interfaces ---
 
-
 function ProfilePage() {
-    const { user, checkAuthStatus } = useAuth(); // setUserState eltávolítva
-    const [activeTab, setActiveTab] = useState<string | null>('details'); // Tab state
+    const { user, checkAuthStatus } = useAuth();
+    const [activeTab, setActiveTab] = useState<string | null>('details');
 
     // --- User Details State & Form ---
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [detailsError, setDetailsError] = useState<string | null>(null);
     const [detailsSuccess, setDetailsSuccess] = useState<string | null>(null);
-    // const [loading, setLoading] = useState(false); // Ezt átnevezzük detailsLoading-ra
-    // const [error, setError] = useState<string | null>(null); // Ezt átnevezzük detailsError-ra
-    // const [success, setSuccess] = useState<string | null>(null); // Ezt átnevezzük detailsSuccess-re
 
-    const detailsForm = useForm<UpdateUserForm>({ // Átnevezés form -> detailsForm
+    const detailsForm = useForm<UpdateUserForm>({
         initialValues: {
-            // Ensure initial values are always defined strings
             email: user?.email || '',
             phone: user?.phone || '',
             password: '',
             confirmPassword: '',
         },
         validate: {
-            // Improved email regex
             email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Invalid email format'),
-            phone: (value) => (value && value.trim().length >= 6 ? null : 'Phone number seems too short'), // Ellenőrizzük, hogy van-e érték
+            phone: (value) => (value && value.trim().length >= 6 ? null : 'Phone number seems too short'),
             password: (value) => {
-                // Only validate password length if a password is entered
                 if (value && value.length < 6) {
                     return 'Password must be at least 6 characters long';
                 }
                 return null;
             },
             confirmPassword: (value, values) => {
-                // Only validate confirmation if a password is entered
                 if (values.password && value !== values.password) {
                     return 'Passwords do not match';
                 }
@@ -92,10 +88,9 @@ function ProfilePage() {
     });
 
     // Effekt a felhasználói adatok frissítésére, ha a user objektum változik
-     useEffect(() => {
+    useEffect(() => {
         if (user) {
-            detailsForm.setValues({ // form -> detailsForm
-                // Ensure values are strings
+            detailsForm.setValues({
                 email: user.email || '',
                 phone: user.phone || '',
                 password: '',
@@ -103,30 +98,46 @@ function ProfilePage() {
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    }, [user]); // detailsForm eltávolítva
 
     // --- Orders State ---
     const [orders, setOrders] = useState<OrderData[]>([]);
     const [ordersLoading, setOrdersLoading] = useState(false);
     const [ordersError, setOrdersError] = useState<string | null>(null);
-    const [cancelError, setCancelError] = useState<string | null>(null); // Külön hiba a törléshez
-    const [cancelSuccess, setCancelSuccess] = useState<string | null>(null); // Külön siker a törléshez
+    const [cancelError, setCancelError] = useState<string | null>(null);
+    const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
     // --- End Orders State ---
+
+    // Új: screening adatok cache
+    const [screeningDetailsById, setScreeningDetailsById] = useState<Record<number, ScreeningDetails>>({});
+    const [screeningLoading, setScreeningLoading] = useState(false);
+
+    // --- Helper Functions ---
+    const formatScreeningDate = (dateString: string | undefined) => {
+        if (!dateString) return 'N/A'; // Ha nincs dátum, 'N/A'-t adunk vissza
+        try {
+            return new Date(dateString).toLocaleString('hu-HU', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch {
+            return 'Invalid Date';
+        }
+    };
+    // --- End Helper Functions ---
 
     // --- Handlers ---
     const handleUpdateProfile = async (values: UpdateUserForm) => {
-        if (!user) return; // Added guard clause
+        if (!user) return;
         setDetailsLoading(true);
         setDetailsError(null);
         setDetailsSuccess(null);
 
-        // Payload matches backend UserRequest (email, phone, optional password)
         const updateData: UpdateProfilePayload = {
             email: values.email,
             phone: values.phone,
         };
 
-        // Only include password if it's provided and matches confirmation
         if (values.password) {
             if (values.password.length < 6) {
                 setDetailsError("Password must be at least 6 characters long.");
@@ -143,103 +154,99 @@ function ProfilePage() {
         }
 
         try {
-            // Correct endpoint: /api/user/user/{id}
             await apiCall<void>(`/api/user/user/${user.id}`, {
                 method: 'PUT',
                 data: updateData,
             });
             setDetailsSuccess('Profile updated successfully!');
-            await checkAuthStatus(); // Refresh user data
+            await checkAuthStatus(); // Refresh user data in context
 
         } catch (err) {
-            // Error handling improved in apiCall, but keep specific message here
             setDetailsError(err instanceof Error ? err.message : 'Failed to update profile.');
         } finally {
             setDetailsLoading(false);
-            // Clear password fields after attempt
             detailsForm.setFieldValue('password', '');
             detailsForm.setFieldValue('confirmPassword', '');
         }
     };
 
-    // Rendelések lekérdezése
+    // --- Új: Screening adatok lekérése ---
+    const fetchScreeningDetails = useCallback(async (screeningIds: number[]) => {
+        const uniqueIds = Array.from(new Set(screeningIds));
+        const details: Record<number, ScreeningDetails> = {};
+        setScreeningLoading(true);
+        await Promise.all(uniqueIds.map(async (id) => {
+            try {
+                const data = await apiCall<ScreeningDetails>(`/api/screening/${id}`);
+                details[id] = data;
+            } catch {
+                // Ha hiba van, ne álljon le az összes
+            }
+        }));
+        setScreeningDetailsById(details);
+        setScreeningLoading(false);
+    }, []);
+
+    // --- Orders lekérdezése + screening adatok lekérése ---
     const fetchOrders = useCallback(async () => {
-        if (!user) return; // Added guard clause
+        if (!user) return;
         setOrdersLoading(true);
         setOrdersError(null);
-        setCancelError(null); // Törlési üzenetek törlése
+        setCancelError(null);
         setCancelSuccess(null);
         try {
-            // Correct endpoint: /api/user/my-orders
-            const userOrders = await apiCall<OrderData[]>('/api/user/my-orders');
+            const userOrders = await apiCall<OrderData[]>("/api/user/my-orders");
             setOrders(userOrders);
+            // ScreeningId-k kigyűjtése
+            const allScreeningIds = userOrders.flatMap(order => order.tickets.map(t => t.screeningId));
+            if (allScreeningIds.length > 0) {
+                await fetchScreeningDetails(allScreeningIds);
+            } else {
+                setScreeningDetailsById({});
+            }
         } catch (err) {
             setOrdersError(err instanceof Error ? err.message : "Failed to fetch orders.");
         } finally {
             setOrdersLoading(false);
         }
-    }, [user]); // Added user dependency
+    }, [user, fetchScreeningDetails]);
 
-    // Rendelés törlése
      const handleCancelOrder = async (orderId: number) => {
         if (!window.confirm(`Are you sure you want to cancel order ID: ${orderId}? This cannot be undone.`)) {
             return;
         }
-        // setOrdersLoading(true); // Nem kell az egész listát loading state-be tenni törléskor
         setCancelError(null);
         setCancelSuccess(null);
         try {
-            await apiCall<void>(`/api/orders/${orderId}`, { method: 'DELETE' });
+            await apiCall<void>(`/api/order/${orderId}`, { method: 'DELETE' }); // Javított endpoint
             setCancelSuccess(`Order ${orderId} cancelled successfully.`);
-            // Sikeres törlés után frissítsük a rendelések listáját a backendről
-            await fetchOrders(); // Újra lekérdezés
-            // setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId)); // Helyi szűrés helyett újratöltés
+            await fetchOrders(); // Refresh list after cancellation
         } catch (err) {
              const errorMsg = err instanceof Error ? err.message : `Failed to cancel order ${orderId}.`;
-             // Pontosabb hibaüzenet a 4 órás szabályra
              if (errorMsg.includes("Cannot cancel order within 4 hours of screening")) {
                  setCancelError("Cannot cancel order: The screening is less than 4 hours away.");
              } else {
                  setCancelError(errorMsg);
              }
-             // setOrdersError(errorMsg); // Külön state a törlési hibához: setCancelError
-        } finally {
-             // setOrdersLoading(false);
         }
     };
 
     // --- Effects ---
-    // Effekt a tab váltás figyelésére és adatok betöltésére
     useEffect(() => {
-        if (activeTab === 'orders' && user) { // Csak akkor töltsön, ha be van jelentkezve
+        if (activeTab === 'orders' && user) {
             fetchOrders();
         }
-        // Üzenetek törlése tab váltáskor
+        // Clear messages on tab change
         setDetailsError(null);
         setDetailsSuccess(null);
         setOrdersError(null);
         setCancelError(null);
         setCancelSuccess(null);
-    }, [activeTab, user, fetchOrders]); // user és fetchOrders hozzáadva a függőségekhez
+    }, [activeTab, user, fetchOrders]); // fetchOrders added
 
-    // --- Helper Functions ---
-    // Dátum formázása olvashatóbbra
-    const formatScreeningDate = (dateString: string | undefined) => {
-        if (!dateString) return 'N/A';
-        try {
-            return new Date(dateString).toLocaleString('hu-HU', {
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        } catch (_) { // Használatlan változó átnevezése
-            return 'Invalid Date';
-        }
-    };
-    // --- End Helper Functions ---
-
-
+    // --- Loading/Initial State ---
     if (!user) {
-        return <Alert color="orange">Please log in to view your profile.</Alert>; // Záró tag hozzáadva
+        return <Alert color="orange">Kérjük, jelentkezz be a profilod megtekintéséhez.</Alert>;
     }
 
     // --- Table Rows ---
@@ -249,26 +256,37 @@ function ProfilePage() {
             <Table.Td>{order.totalPrice} Ft</Table.Td>
             <Table.Td>
                 {order.tickets && order.tickets.length > 0 ? (
-                    <ul>
-                        {order.tickets.map(ticket => (
-                            <li key={ticket.id}>
-                                {/* Itt használjuk a formatScreeningDate-et */}
-                                Seat: {ticket.seatNumber} (Screening: {ticket.screeningId} on {formatScreeningDate(ticket.screening?.screeningDate)}) - Status: {ticket.status}
-                            </li>
-                        ))}
-                    </ul>
+                    <List size="sm" spacing="xs">
+                        {order.tickets.map(ticket => {
+                            const screening = screeningDetailsById[ticket.screeningId];
+                            return (
+                                <List.Item key={ticket.id}>
+                                    <Text fw={500}>Seat: {ticket.seatNumber}</Text>
+                                    {screening ? (
+                                        <>
+                                            <Text size="sm">Movie: {screening.movieName}</Text>
+                                            <Text size="sm">Room: {screening.roomName}</Text>
+                                            <Text size="sm">Date: {formatScreeningDate(screening.screeningDate)}</Text>
+                                        </>
+                                    ) : (
+                                        <Text size="sm" c="dimmed">Screening details unavailable</Text>
+                                    )}
+                                    <Text size="sm">Status: {ticket.status}</Text>
+                                </List.Item>
+                            );
+                        })}
+                    </List>
                 ) : (
                     <Text size="sm" c="dimmed">No tickets found for this order.</Text>
                 )}
             </Table.Td>
             <Table.Td>
-                {/* Törlés gomb csak akkor, ha van törölhető jegy (pl. status alapján) */}
                 {order.tickets?.some(t => t.status === 'Purchased') && (
                     <Button
                         size="xs"
                         color="red"
                         onClick={() => handleCancelOrder(order.id)}
-                        loading={ordersLoading} // Loading state a törléshez
+                        loading={ordersLoading && activeTab === 'orders'}
                         leftSection={<IconTrash size={14} />}
                     >
                         Cancel Order
@@ -281,94 +299,79 @@ function ProfilePage() {
 
     return (
         <Paper shadow="xs" p="md">
-            <Title order={2} mb="lg">My Profile</Title>
+            <Title order={2} mb="lg">Profilom</Title>
 
-            {/* Tabs hozzáadása */}
             <Tabs value={activeTab} onChange={setActiveTab}>
                 <Tabs.List grow>
-                    <Tabs.Tab value="details" leftSection={<IconUserCircle size={14} />}>My Details</Tabs.Tab>
-                    <Tabs.Tab value="orders" leftSection={<IconTicket size={14} />}>My Orders</Tabs.Tab>
+                    <Tabs.Tab value="details" leftSection={<IconUserCircle size={14} />}>Adatok módosítása</Tabs.Tab>
+                    <Tabs.Tab value="orders" leftSection={<IconTicket size={14} />}>Saját jegyeim</Tabs.Tab>
                 </Tabs.List>
 
                 {/* User Details Panel */}
                 <Tabs.Panel value="details" pt="lg">
-                    <Title order={4} mb="md">Update Your Information</Title>
-                    {/* Name megjelenítése, ha van */}
-                    {user.name && <Text mb="md">Name: {user.name}</Text>}
-                    <Text mb="md">Role: {user.role}</Text>
-                    {detailsError && <Alert icon={<IconAlertCircle size="1rem" />} title="Update Error" color="red" mb="md" withCloseButton onClose={() => setDetailsError(null)}>{detailsError}</Alert>}
-                    {detailsSuccess && <Alert icon={<IconCircleCheck size="1rem" />} title="Success" color="green" mb="md" withCloseButton onClose={() => setDetailsSuccess(null)}>{detailsSuccess}</Alert>}
+                    <Title order={4} mb="md">Személyes adatok frissítése</Title>
+                    {user.name && <Text mb="xs">Név: {user.name}</Text>}
+                    <Text mb="md">Szerepkör: {user.role}</Text>
+                    {detailsError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a frissítéskor" color="red" mb="md" withCloseButton onClose={() => setDetailsError(null)}>{detailsError}</Alert>}
+                    {detailsSuccess && <Alert icon={<IconCircleCheck size="1rem" />} title="Sikeres frissítés" color="green" mb="md" withCloseButton onClose={() => setDetailsSuccess(null)}>{detailsSuccess}</Alert>}
 
-                    {/* Form átnevezve detailsForm-ra */}
                     <Box component="form" onSubmit={detailsForm.onSubmit(handleUpdateProfile)} maw={400}>
-                        {/* Name input eltávolítva, ha a backend nem várja a UserRequest-ben */}
-                        {/* <TextInput
-                            label="Name"
-                            placeholder="Your name"
-                            required
-                            {...detailsForm.getInputProps('name')}
-                            mb="sm"
-                        /> */}
                         <TextInput
-                            label="Email"
-                            placeholder="your@email.com"
+                            label="Email cím"
+                            placeholder="email@pelda.hu"
                             required
                             {...detailsForm.getInputProps('email')}
                             mb="sm"
                         />
                         <TextInput
-                            label="Phone Number"
+                            label="Telefonszám"
                             placeholder="+36..."
                             required
-                            {...detailsForm.getInputProps('phone')} // 'phone' maradjon, ha a backend kezeli
+                            {...detailsForm.getInputProps('phone')}
                             mb="sm"
                         />
                         <PasswordInput
-                            label="New Password (optional)"
-                            placeholder="Leave blank to keep current password"
+                            label="Új jelszó (nem kötelező)"
+                            placeholder="Hagyja üresen, ha nem változtatja"
                             {...detailsForm.getInputProps('password')}
                             mb="sm"
                         />
                         <PasswordInput
-                            label="Confirm New Password"
-                            placeholder="Confirm new password"
+                            label="Új jelszó megerősítése"
+                            placeholder="Új jelszó újra"
                             {...detailsForm.getInputProps('confirmPassword')}
                             mb="lg"
                         />
-
-                        {/* Error/Success Alert áthelyezve a form fölé */}
-
                         <Group justify="flex-end">
-                            <Button type="submit" loading={detailsLoading}>Update Profile</Button>
+                            <Button type="submit" loading={detailsLoading}>Mentés</Button>
                         </Group>
                     </Box>
                 </Tabs.Panel>
 
                 {/* My Orders Panel */}
                 <Tabs.Panel value="orders" pt="lg">
-                    <Title order={3} mt="xl" mb="md">My Orders</Title>
-                    {/* Külön hiba/siker üzenetek a törléshez */}
-                    {cancelError && <Alert icon={<IconAlertCircle size="1rem" />} title="Cancellation Error" color="red" mb="md" withCloseButton onClose={() => setCancelError(null)}>{cancelError}</Alert>}
-                    {cancelSuccess && <Alert icon={<IconCircleCheck size="1rem" />} title="Cancellation Successful" color="green" mb="md" withCloseButton onClose={() => setCancelSuccess(null)}>{cancelSuccess}</Alert>}
+                    <Title order={3} mt="xl" mb="md">Saját jegyeim</Title>
+                    {screeningLoading && <Loader my="md" />}
+                    {cancelError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a lemondáskor" color="red" mb="md" withCloseButton onClose={() => setCancelError(null)}>{cancelError}</Alert>}
+                    {cancelSuccess && <Alert icon={<IconCircleCheck size="1rem" />} title="Sikeres lemondás" color="green" mb="md" withCloseButton onClose={() => setCancelSuccess(null)}>{cancelSuccess}</Alert>}
 
                     {ordersLoading && <Loader my="lg" />}
                     {ordersError && !ordersLoading && (
-                         <Alert icon={<IconAlertCircle size="1rem" />} title="Orders Error" color="red" mb="md">
+                         <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba a rendelések betöltésekor" color="red" mb="md">
                             {ordersError}
                          </Alert>
                     )}
                     {!ordersLoading && !ordersError && orders.length === 0 && (
-                        <Text>You haven't purchased any tickets yet.</Text>
+                        <Text>Még nem vásároltál jegyet.</Text>
                     )}
-                    {/* Táblázat használata a List helyett */}
                     {!ordersLoading && !ordersError && orders.length > 0 && (
                          <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>Order ID</Table.Th>
-                                    <Table.Th>Total Price</Table.Th>
-                                    <Table.Th>Tickets</Table.Th>
-                                    <Table.Th>Actions</Table.Th>
+                                    <Table.Th>Rendelés azonosító</Table.Th>
+                                    <Table.Th>Teljes ár</Table.Th>
+                                    <Table.Th>Jegyek</Table.Th>
+                                    <Table.Th>Műveletek</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{orderRows}</Table.Tbody>
