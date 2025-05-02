@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode, useCa
 import { apiCall } from '../services/api'; // Import apiCall
 
 // A teljes User objektum, amit a /me végpont ad vissza
-interface User {
+export interface User {
     id: number; // Backend alapján int
     name: string;
     email: string;
@@ -17,8 +17,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
-    // Add login function signature
-    login: (email: string, password: string) => Promise<User>; // Returns the logged-in user on success
+    login: (email: string, password: string) => Promise<User>; // Sikeres bejelentkezés esetén visszaadja a bejelentkezett felhasználót
     logout: () => Promise<void>;
     checkAuthStatus: () => Promise<User | null>; // Visszaadja a usert vagy null-t
     setUserState: (user: User | null) => void; // Közvetlen user beállítás (pl. login után)
@@ -55,36 +54,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // --- Login Function Implementation ---
     const login = useCallback(async (email: string, password: string): Promise<User> => {
         console.log("Attempting login...");
-        // No need to setIsLoading(true) here, as apiCall handles its own logic,
-        // and checkAuthStatus might be called after, which sets loading.
         try {
-            // Call the /login endpoint using apiCall
-            // The backend LoginResponse structure matches the User interface
-            const loggedInUser = await apiCall<User>('/login', {
+            // Javított végpont: /api/auth/login
+            const loggedInUser = await apiCall<User>('/api/auth/login', {
                 method: 'POST',
                 data: { email, password },
             });
-            console.log("Login API call successful via apiCall, user:", loggedInUser);
-            setUserState(loggedInUser); // Update the user state immediately
-            // Optionally, call checkAuthStatus again to be absolutely sure, but setUserState might be enough
-            // await checkAuthStatus();
-            return loggedInUser; // Return the user data on success
+            setUserState(loggedInUser);
+            return loggedInUser;
         } catch (error) {
-            // apiCall already handles error logging and notifications
             console.error("Login failed in AuthContext:", error);
-            setUserState(null); // Ensure user state is null on login failure
-            // Re-throw the error so the calling component (LoginPage) can catch it if needed
+            setUserState(null);
             throw error;
         }
-        // No finally block needed here to set loading to false, handled by checkAuthStatus or initial load
-    }, [setUserState]); // Add setUserState as dependency
+    }, [setUserState]);
 
     // Kijelentkezés
     const logout = useCallback(async () => {
         console.log("Attempting logout...");
         try {
-            // Használjuk az apiCall-t a /logout végpont hívásához
-            await apiCall<void>('/logout', { method: 'POST' });
+            // Használjuk az apiCall-t a /api/auth/logout végpont hívásához
+            await apiCall<void>('/api/auth/logout', { method: 'POST' });
             console.log("Logout API call successful via apiCall");
         } catch (error) {
             // Az apiCall már kezeli a hiba logolását és notificationt
@@ -100,14 +90,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log("Checking auth status via /api/user/me using apiCall...");
         setIsLoading(true);
         try {
-            // Használjuk az apiCall-t a /me végpont hívásához
+            // Használjuk az apiCall-t a /api/user/me végpont hívásához
             const currentUser = await apiCall<User>('/api/user/me'); // Backend MeResponse -> User
             setUser(currentUser);
             console.log("Auth status check successful via apiCall, user:", currentUser);
             return currentUser;
         } catch (error) {
             // Az apiCall már kezeli a hiba logolását és notificationt (pl. 401 esetén)
-            console.log("Auth status check failed via apiCall (likely not logged in)");
+            console.log("Auth status check failed via apiCall (likely not logged in)",error);
             setUser(null);
             return null;
         } finally {

@@ -91,7 +91,7 @@ function MovieDetailsPage() {
             setLoading(true);
             setError(null);
             try {
-                const data = await apiCall<MovieDetails>(`/movies/${id}`);
+                const data = await apiCall<MovieDetails>(`/api/movie/${id}`);
                 setMovie(data);
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Film részleteinek lekérdezése sikertelen.");
@@ -149,7 +149,7 @@ function MovieDetailsPage() {
         }
 
         try {
-            const response = await apiCall<OrderResponse>('/orders', {
+            const response = await apiCall<OrderResponse>('/api/order', {
                 method: 'POST',
                 data: orderRequest,
             });

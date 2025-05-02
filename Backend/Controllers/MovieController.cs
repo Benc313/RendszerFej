@@ -9,7 +9,7 @@ using System.Linq; // Ensure LINQ is included
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("movies")]
+[Route("api/[controller]")]
 public class MovieController : ControllerBase
 {
     private readonly dbContext _db;

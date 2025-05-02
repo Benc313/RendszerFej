@@ -21,7 +21,7 @@ function RegisterPage() {
         validate: {
             name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
             email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-            phoneNumber: (value) => (value.trim().length >= 6 ? null : 'Phone number seems too short'), // Basic check
+            phoneNumber: (value) => (value.trim().length >= 6 ? null : 'Phone number seems too short'),
             password: (value) => (value.length >= 6 ? null : 'Password must be at least 6 characters'),
             confirmPassword: (value, values) =>
                 value === values.password ? null : 'Passwords do not match',
@@ -29,19 +29,33 @@ function RegisterPage() {
     });
 
     const handleSubmit = async (values: typeof form.values) => {
-        setError(null);
         setIsLoading(true);
+        setError(null);
+
+        if (values.password !== values.confirmPassword) {
+            setError("Passwords do not match.");
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            // Exclude confirmPassword from the data sent to the backend
-            const { confirmPassword, ...registerData } = values;
-            await apiCall<void>('/register', {
+            // Helyes endpoint és mezőnevek
+            const response = await apiCall<{ success: boolean; message: string }>('/api/auth/register', {
                 method: 'POST',
-                data: registerData,
+                data: {
+                    name: values.name,
+                    email: values.email,
+                    password: values.password,
+                    phoneNumber: values.phoneNumber, // Helyes mezőnév
+                },
             });
-            // On successful registration, navigate to the login page
-            navigate('/login');
-            // Optionally show a success message before navigating
-            // alert('Registration successful! Please log in.');
+
+            if (response.success) {
+                // Sikeres regisztráció
+                navigate('/login');
+            } else {
+                setError(response.message || 'Registration failed.');
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
         } finally {

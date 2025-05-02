@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("screenings")]
+    [Route("api/[controller]")]
     public class ScreeningController : ControllerBase
     {
         private readonly dbContext _db;

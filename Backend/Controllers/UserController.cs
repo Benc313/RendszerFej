@@ -14,8 +14,8 @@ using System.Linq; // Add this for LINQ methods like Select
 
 namespace Backend.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")] // <-- Add this line
     public class UserController : ControllerBase
     {
         private readonly dbContext _db;

@@ -103,12 +103,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Serve static files (like index.html, CSS, JS from wwwroot)
+app.UseStaticFiles(); // <-- Add this line
+
 // Use CORS policy
 app.UseCors("AllowFrontend"); // Ensure CORS is before Auth
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers(); 
+app.MapControllers(); // API endpoints
+
+// SPA Fallback: Redirect non-API, non-file requests to index.html
+app.MapFallbackToFile("index.html"); // <-- Add this line
 
 app.Run();

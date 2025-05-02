@@ -8,8 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers;
 
 [ApiController]
+[Route("api/[controller]")]
 [Authorize(Roles = "Admin")]
-[Route("/admin")] 
 public class AdminController : ControllerBase
 {
     private readonly dbContext _db;

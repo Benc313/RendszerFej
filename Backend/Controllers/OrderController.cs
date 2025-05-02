@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("orders")]
+[Route("api/[controller]")]
 public class OrderController : ControllerBase
 {
     private readonly dbContext _db;

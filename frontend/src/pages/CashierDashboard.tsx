@@ -109,8 +109,8 @@ function CashierDashboard() {
         setOrdersLoading(true);
         setOrdersError(null);
         try {
-            // GET kérés a /orders végpontra
-            const data = await apiCall<OrderData[]>('/orders');
+            // GET kérés a /api/orders végpontra
+            const data = await apiCall<OrderData[]>('/api/orders');
             setOrders(data);
         } catch (err) {
             setOrdersError(err instanceof Error ? err.message : "Rendelések lekérdezése sikertelen.");
@@ -133,7 +133,7 @@ function CashierDashboard() {
                 movie?: { id: number; title: string; description: string; duration: number; }; // Movie lehet opcionális
                 terem?: { id: number; roomName: string; seats: number; }; // Terem lehet opcionális
             }
-            const data = await apiCall<BackendScreeningResponse[]>('/screenings');
+            const data = await apiCall<BackendScreeningResponse[]>('/api/screenings');
             // Átalakítás a frontend Select komponenshez és állapothoz (ScreeningOption)
             // Szűrés és biztonságos hozzáférés
             const options: ScreeningOption[] = data
@@ -160,8 +160,8 @@ function CashierDashboard() {
         setValidationError(null);
         // setValidationSuccess(null); // Felesleges, notificationt használunk
         try {
-            // GET kérés a /tickets/validate/{id} végpontra
-            const response = await apiCall<{ message: string }>(`/tickets/validate/${values.ticketId}`, {
+            // GET kérés a /api/tickets/validate/{id} végpontra
+            const response = await apiCall<{ message: string }>(`/api/tickets/validate/${values.ticketId}`, {
                 method: 'GET',
             });
             notifications.show({ // Sikeres érvényesítés értesítés
@@ -199,8 +199,8 @@ function CashierDashboard() {
         };
 
         try {
-            // POST kérés a /orders végpontra
-            const response = await apiCall<OrderData>('/orders', {
+            // POST kérés a /api/orders végpontra
+            const response = await apiCall<OrderData>('/api/orders', {
                 method: 'POST',
                 data: orderRequest,
             });

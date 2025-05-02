@@ -6,58 +6,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Az '/api' kezdetű kérések átirányítása a backendhez (UserController)
+      // Proxy all requests starting with /api to the backend server
       '/api': {
-        target: 'http://localhost:5196', // A backend címe
+        target: 'http://localhost:5196', // Your backend address
         changeOrigin: true,
-        secure: false, // Fejlesztéshez, ha a backend HTTPS-t használna önaláírt tanúsítvánnyal
-      },
-      // Külön proxy szabályok a gyökérben lévő végpontokhoz
-      '/register': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-      '/login': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-      '/logout': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/movies': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/screenings': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/orders': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/tickets': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/room': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
-      },
-       '/admin': {
-         target: 'http://localhost:5196',
-         changeOrigin: true,
-         secure: false,
+        secure: false,      // If backend is not HTTPS
+        // No rewrite needed if backend routes also start with /api
+        // rewrite: (path) => path.replace(/^\/api/, '') // Remove this if backend routes are now /api/...
       }
-    }
+    },
+    port: 5173, // Keep your frontend port
   }
 })

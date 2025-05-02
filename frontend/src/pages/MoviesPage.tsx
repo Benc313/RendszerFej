@@ -22,7 +22,8 @@ function MoviesPage() {
             setLoading(true);
             setError(null);
             try {
-                const data = await apiCall<MovieSummary[]>('/movies');
+                // Helyes végpont: /api/movie
+                const data = await apiCall<MovieSummary[]>('/api/movie');
                 setMovies(data);
             } catch (err) {
                 const errorMessage = (err instanceof Error) ? err.message : "Nem sikerült lekérni a filmeket.";

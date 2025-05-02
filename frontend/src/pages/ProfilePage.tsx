@@ -189,7 +189,7 @@ function ProfilePage() {
         setCancelError(null);
         setCancelSuccess(null);
         try {
-            await apiCall<void>(`/orders/${orderId}`, { method: 'DELETE' });
+            await apiCall<void>(`/api/orders/${orderId}`, { method: 'DELETE' });
             setCancelSuccess(`Order ${orderId} cancelled successfully.`);
             // Sikeres törlés után frissítsük a rendelések listáját a backendről
             await fetchOrders(); // Újra lekérdezés

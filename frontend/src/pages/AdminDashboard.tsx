@@ -54,12 +54,15 @@ interface RoomFormValues { // Terem űrlap értékei
 
 // --- Vetítéskezelési Interfészek ---
 // Interfész a Backend ScreeningResponse struktúrájához igazítva
+// Módosítva a tényleges API válasz alapján
 interface BackendScreeningResponse {
     id: number;
     screeningDate: string; // ISO string formátumú dátum
     price: number;
-    movie: MovieData; // Beágyazott Movie objektum
-    terem: RoomData;  // Beágyazott Terem objektum (RoomData-ként kezelve)
+    movieName: string; // Közvetlen property
+    roomName: string;  // Közvetlen property (feltételezve, hogy a backend ezt küldi, a logban 'room' volt, de a többi kódrészlet roomName-et használ)
+    movieId: number;   // Közvetlen property
+    roomId: number;    // Közvetlen property
 }
 
 // Frontend állapot interfész - kényelmi ID-kkal kiegészítve
@@ -148,7 +151,7 @@ function AdminDashboard() {
     const roomForm = useForm<RoomFormValues>({
         initialValues: { roomName: '', seats: '' },
         validate: {
-            roomName: (value) => (value.trim().length === 1 ? null : 'A terem nevének egy karakternek kell lennie'),
+            roomName: (value) => (value.trim().length > 0 ? null : 'A terem nevének megadása kötelező'),
             seats: (value) => (value !== '' && value > 0 ? null : 'Az ülések számának pozitív számnak kell lennie'),
         },
     });
@@ -171,9 +174,9 @@ function AdminDashboard() {
         setUsersError(null);
         setUserActionError(null); // Korábbi műveleti hiba törlése
         try {
-            // Figyelem: Ideális esetben itt egy admin-specifikus végpont kellene, pl. /admin/users
+            // Figyelem: Ideális esetben itt egy admin-specifikus végpont kellene, pl. /api/admin/users
             // Jelenleg a /api/user/users végpontot használja, ami lehet, hogy minden felhasználót visszaad.
-            // A műveletek (törlés, tiltás) viszont a /admin végpontokat használják helyesen.
+            // A műveletek (törlés, tiltás) viszont a /api/admin végpontokat használják helyesen.
             const data = await apiCall<UserData[]>('/api/user/users');
             setUsers(data);
         } catch (err) {
@@ -189,7 +192,7 @@ function AdminDashboard() {
         setMoviesError(null);
         setMovieActionError(null);
         try {
-            const data = await apiCall<MovieData[]>('/movies');
+            const data = await apiCall<MovieData[]>('/api/movie');
             setMovies(data);
         } catch (err) {
             setMoviesError(err instanceof Error ? err.message : "Filmek lekérdezése sikertelen.");
@@ -204,7 +207,7 @@ function AdminDashboard() {
         setRoomsError(null);
         setRoomActionError(null);
         try {
-            const data = await apiCall<RoomData[]>('/room');
+            const data = await apiCall<RoomData[]>('/api/room');
             setRooms(data);
         } catch (err) {
             setRoomsError(err instanceof Error ? err.message : "Termek lekérdezése sikertelen.");
@@ -220,16 +223,17 @@ function AdminDashboard() {
         setScreeningActionError(null);
         try {
             // Backend válasz (BackendScreeningResponse) lekérdezése
-            const data = await apiCall<BackendScreeningResponse[]>('/screenings');
+            const data = await apiCall<BackendScreeningResponse[]>('/api/screening');
             // Backend válasz átalakítása a frontend állapot (ScreeningData) struktúrájára
+            // A filter felesleges, mert a backend már a szükséges adatokat küldi
             const mappedData: ScreeningData[] = data.map(s => ({
                 id: s.id,
                 screeningDate: s.screeningDate,
                 price: s.price,
-                movieTitle: s.movie.title, // Cím kinyerése
-                roomName: s.terem.roomName, // Terem nevének kinyerése
-                movieId: s.movie.id,       // Film ID kinyerése
-                roomId: s.terem.id,        // Terem ID kinyerése
+                movieTitle: s.movieName, // Helyes property használata
+                roomName: s.roomName,   // Helyes property használata
+                movieId: s.movieId,     // Helyes property használata
+                roomId: s.roomId,       // Helyes property használata
             }));
             setScreenings(mappedData);
         } catch (err) {
@@ -309,12 +313,14 @@ function AdminDashboard() {
         setScreeningActionError(null);
         if (screeningToEdit) { // Szerkesztés
             setEditingScreening(screeningToEdit);
-            // Űrlap feltöltése a tárolt ID-k és adatok alapján
+            // movieId és roomId kikeresése név alapján
+            const foundMovie = movies.find(m => m.title === screeningToEdit.movieTitle);
+            const foundRoom = rooms.find(r => r.roomName === screeningToEdit.roomName);
             screeningForm.setValues({
-                movieId: screeningToEdit.movieId.toString(), // Tárolt movieId
-                roomId: screeningToEdit.roomId.toString(),   // Tárolt roomId
-                screeningDate: screeningToEdit.screeningDate ? new Date(screeningToEdit.screeningDate) : null, // Dátum objektummá alakítás
-                price: screeningToEdit.price ?? '', // Ár (vagy üres string)
+                movieId: foundMovie ? foundMovie.id.toString() : '',
+                roomId: foundRoom ? foundRoom.id.toString() : '',
+                screeningDate: screeningToEdit.screeningDate ? new Date(screeningToEdit.screeningDate) : null,
+                price: screeningToEdit.price,
             });
         } else { // Hozzáadás
             setEditingScreening(null);
@@ -330,8 +336,8 @@ function AdminDashboard() {
     const handleAddCashier = async (values: NewCashierForm) => {
         setUserActionError(null);
         try {
-            // Helyes végpont: /admin/cashier
-            await apiCall<void>('/admin/cashier', {
+            // Helyes végpont: /api/admin/cashier
+            await apiCall<void>('/api/admin/cashier', {
                 method: 'POST',
                 data: values,
             });
@@ -353,8 +359,8 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót? Ez a művelet nem vonható vissza.`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /admin/user/{id}
-            await apiCall<void>(`/admin/user/${userId}`, { method: 'DELETE' });
+            // Helyes végpont: /api/admin/user/{id}
+            await apiCall<void>(`/api/admin/user/${userId}`, { method: 'DELETE' });
             notifications.show({ // Sikeres törlés értesítés
                 title: 'Felhasználó törölve',
                 message: `A(z) ${userName} (ID: ${userId}) felhasználó sikeresen törölve.`,
@@ -371,8 +377,8 @@ function AdminDashboard() {
          if (!window.confirm(`Biztosan tiltani szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót 30 napra?`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /admin/ban/{id}
-            const response = await apiCall<{ message: string }>(`/admin/ban/${userId}`, { method: 'POST' });
+            // Helyes végpont: /api/admin/ban/{id}
+            const response = await apiCall<{ message: string }>(`/api/admin/ban/${userId}`, { method: 'POST' });
             notifications.show({ // Sikeres tiltás értesítés
                 title: 'Felhasználó tiltva',
                 message: response.message || `A(z) ${userName} (ID: ${userId}) felhasználó sikeresen tiltva.`,
@@ -389,8 +395,8 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan fel szeretnéd oldani a(z) ${userName} (ID: ${userId}) felhasználó tiltását?`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /admin/unban/{id}
-            const response = await apiCall<{ message: string }>(`/admin/unban/${userId}`, { method: 'POST' });
+            // Helyes végpont: /api/admin/unban/{id}
+            const response = await apiCall<{ message: string }>(`/api/admin/unban/${userId}`, { method: 'POST' });
             notifications.show({ // Sikeres feloldás értesítés
                 title: 'Tiltás feloldva',
                 message: response.message || `A(z) ${userName} (ID: ${userId}) felhasználó tiltása sikeresen feloldva.`,
@@ -409,7 +415,7 @@ function AdminDashboard() {
             const date = new Date(dateString);
             // Ellenőrzi, hogy a tiltás még érvényes-e
             return date > new Date() ? date.toLocaleString('hu-HU') : 'Nincs tiltva (Lejárt)';
-        } catch (e) { return 'Érvénytelen dátum'; }
+        } catch { return 'Érvénytelen dátum'; }
     };
     // --- Felhasználókezelési Handler-ek Vége ---
 
@@ -425,11 +431,11 @@ function AdminDashboard() {
         };
         try {
             const action = editingMovie ? 'módosítva' : 'hozzáadva'; // Művelet neve az üzenethez
-            let response: MovieData;
+            // Removed unused variable 'response'
             if (editingMovie) { // Szerkesztés (PUT kérés)
-                response = await apiCall<MovieData>(`/movies/${editingMovie.id}`, { method: 'PUT', data: movieData });
+                await apiCall<MovieData>(`/api/movie/${editingMovie.id}`, { method: 'PUT', data: movieData });
             } else { // Hozzáadás (POST kérés)
-                response = await apiCall<MovieData>('/movies', { method: 'POST', data: movieData });
+                await apiCall<MovieData>('/api/movie', { method: 'POST', data: movieData });
             }
             notifications.show({ // Sikeres művelet értesítés
                 title: `Film ${action}`,
@@ -449,8 +455,8 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${movieTitle}" (ID: ${movieId}) című filmet? Ez a művelet nem vonható vissza.`)) return;
         setMovieActionError(null);
         try {
-            // DELETE kérés a /movies/{id} végpontra
-            await apiCall<void>(`/movies/${movieId}`, { method: 'DELETE' });
+            // DELETE kérés a /api/movie/{id} végpontra
+            await apiCall<void>(`/api/movie/${movieId}`, { method: 'DELETE' });
             notifications.show({ // Sikeres törlés értesítés
                 title: 'Film törölve',
                 message: `A(z) "${movieTitle}" (ID: ${movieId}) című film sikeresen törölve.`,
@@ -482,10 +488,10 @@ function AdminDashboard() {
         try {
             const action = editingRoom ? 'módosítva' : 'hozzáadva';
             if (editingRoom) { // Szerkesztés (PUT)
-                await apiCall<RoomData>(`/room/${editingRoom.id}`, { method: 'PUT', data: roomData });
+                await apiCall<RoomData>(`/api/room/${editingRoom.id}`, { method: 'PUT', data: roomData });
             } else { // Hozzáadás (POST)
                 // A backend itt valószínűleg csak 201 Created vagy 200 OK választ ad, nem feltétlen a terem adatait
-                await apiCall<void>('/room', { method: 'POST', data: roomData });
+                await apiCall<void>('/api/room', { method: 'POST', data: roomData });
             }
             notifications.show({ // Sikeres művelet értesítés
                 title: `Terem ${action}`,
@@ -506,8 +512,8 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${roomName}" (ID: ${roomId}) nevű termet? Ez a művelet nem vonható vissza.`)) return;
         setRoomActionError(null);
         try {
-            // DELETE kérés a /room/{id} végpontra
-            await apiCall<void>(`/room/${roomId}`, { method: 'DELETE' });
+            // DELETE kérés a /api/room/{id} végpontra
+            await apiCall<void>(`/api/room/${roomId}`, { method: 'DELETE' });
             notifications.show({ // Sikeres törlés értesítés
                 title: 'Terem törölve',
                 message: `A(z) "${roomName}" (ID: ${roomId}) nevű terem sikeresen törölve.`,
@@ -562,8 +568,8 @@ function AdminDashboard() {
 
         try {
             const action = editingScreening ? 'módosítva' : 'hozzáadva';
-            const endpoint = editingScreening ? `/screenings/${editingScreening.id}` : '/screenings'; // Végpont meghatározása
-            const method = editingScreening ? 'PUT' : 'POST'; // Metódus meghatározása
+            const endpoint = editingScreening ? `/api/screening/${editingScreening.id}` : '/api/screening'; // Végpont meghatározása
+            const method = editingScreening ? 'PUT' : 'POST';
 
             // Helyes payload (screeningPayload) használata a kérésben
             await apiCall<BackendScreeningResponse>(endpoint, { method: method, data: screeningPayload });
@@ -587,8 +593,8 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${movieTitle}" film vetítését a(z) "${roomName}" teremben (ID: ${screeningId})? Ez a művelet nem vonható vissza.`)) return;
         setScreeningActionError(null);
         try {
-            // DELETE kérés a /screenings/{id} végpontra
-            await apiCall<void>(`/screenings/${screeningId}`, { method: 'DELETE' });
+            // DELETE kérés a /api/screening/{id} végpontra
+            await apiCall<void>(`/api/screening/${screeningId}`, { method: 'DELETE' });
             notifications.show({ // Sikeres törlés értesítés
                 title: 'Vetítés törölve',
                 message: `A(z) ${screeningId} ID-jű vetítés sikeresen törölve.`,
@@ -704,7 +710,7 @@ function AdminDashboard() {
 
     // Termek a Select komponenshez (csak a létező nevekkel)
     const roomOptions = rooms
-        .filter(room => room && typeof room.roomName === 'string') // Biztosítja, hogy a terem és a név létezik
+        .filter(room => room && typeof room.roomName === 'string')
         .map(room => ({ value: room.id.toString(), label: room.roomName }));
     // --- Dropdown Adatok Előkészítése Vége ---
 
@@ -877,7 +883,7 @@ function AdminDashboard() {
                  {roomActionError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{roomActionError}</Alert>}
                  {/* Terem űrlap */}
                  <form onSubmit={roomForm.onSubmit(handleRoomSubmit)}>
-                     <TextInput label="Terem neve (egy karakter)" required maxLength={1} {...roomForm.getInputProps('roomName')} mb="sm" />
+                     <TextInput label="Terem neve" required {...roomForm.getInputProps('roomName')} mb="sm" />
                      <NumberInput label="Ülőhelyek száma" required min={1} allowDecimal={false} {...roomForm.getInputProps('seats')} mb="lg" />
                      <Group justify="flex-end">
                          <Button variant="default" onClick={() => setIsRoomModalOpen(false)}>Mégse</Button>

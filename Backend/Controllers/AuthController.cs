@@ -14,7 +14,7 @@ using ValidationResult = FluentValidation.Results.ValidationResult;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("")]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
 	private readonly dbContext _db;
