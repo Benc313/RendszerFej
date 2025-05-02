@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("screenings")]
+    [Route("api/[controller]")]
     public class ScreeningController : ControllerBase
     {
         private readonly dbContext _db;
@@ -26,7 +26,6 @@ namespace Backend.Controllers
                 .Include(s => s.Movie)
                 .Include(s => s.Terem)
                 .ToListAsync();
-            Console.WriteLine("Vetitesek: " + vetitesek.Count);
             return Ok(vetitesek.Select(v => new ScreeningResponse(v)).ToList());
         }
 
@@ -70,11 +69,11 @@ namespace Backend.Controllers
                 await _db.SaveChangesAsync();
                 return Ok(new ScreeningResponse(screening));
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException)
             {
                 return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the screening. Please try again later." } });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later."  } });
             }
@@ -83,7 +82,7 @@ namespace Backend.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ScreeningResponse>> GetScreening(int id)
         {
-            Screening screening = await _db.Screenings
+            Screening? screening = await _db.Screenings
                 .Include(s => s.Movie)
                 .Include(s => s.Terem)
                 .FirstOrDefaultAsync(s => s.Id == id);
@@ -96,7 +95,7 @@ namespace Backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteScreening(int id)
         {
-            Screening screening = await _db.Screenings.FirstOrDefaultAsync(s => s.Id == id);
+            Screening? screening = await _db.Screenings.FirstOrDefaultAsync(s => s.Id == id);
             if (screening == null)
                 return NotFound();
             _db.Screenings.Remove(screening);
@@ -113,7 +112,7 @@ namespace Backend.Controllers
                 return BadRequest(new { Errors = new List<string> { "Price cannot be negative" } });
             }
 
-            Screening screening = await _db.Screenings
+            Screening? screening = await _db.Screenings
                 .Include(s => s.Movie)
                 .Include(s => s.Terem)
                 .FirstOrDefaultAsync(s => s.Id == id);
@@ -122,21 +121,23 @@ namespace Backend.Controllers
                 return NotFound(new { Errors = new List<string> { "Screening not found" } });
             }
 
-            Terem terem = await _db.Terems.FirstOrDefaultAsync(t => t.Room == screeningRequest.TeremName);
+            Terem? terem = await _db.Terems.FirstOrDefaultAsync(t => t.Room == screeningRequest.TeremName);
             if (terem == null)
             {
                 return BadRequest(new { Errors = new List<string> { "No valid Room was assigned!" } });
             }
 
-            Movie movie = await _db.Movies.FirstOrDefaultAsync(m => m.Title == screeningRequest.MovieTitle);
+            Movie? movie = await _db.Movies.FirstOrDefaultAsync(m => m.Title == screeningRequest.MovieTitle);
             if (movie == null)
             {
                 return BadRequest(new { Errors = new List<string> { "No valid Movie title was used!" } });
             }
 
             screening.Update(screeningRequest, terem, movie);
-            await _db.SaveChangesAsync();
-            return Ok(new ScreeningResponse(screening));
+            screening.Price = screeningRequest.Price; 
+
+            await _db.SaveChangesAsync(); 
+            return Ok(new ScreeningResponse(screening)); 
         }
 
     }

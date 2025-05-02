@@ -25,7 +25,8 @@ namespace Backend.Model
         public string Phone { get; set; }
 
         [Required]
-        public string Role { get; set; } = "user";
+[StringLength(50)]
+        public string Role { get; set; } = "User";
 
         public DateTime? BannedTill { get; set; } = null;
 
@@ -38,7 +39,7 @@ namespace Backend.Model
             Email = cashierRequest.Email;
             Phone = cashierRequest.PhoneNumber;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(cashierRequest.Password);
-            Role = "cashier";
+            Role = "Cashier";
         }
 
         public Users(RegisterRequest registerRequest)
@@ -46,7 +47,8 @@ namespace Backend.Model
             Name = registerRequest.Name;
             Email = registerRequest.Email;
             Phone = registerRequest.PhoneNumber;
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerRequest.Password);
+              PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerRequest.Password);
+            Role = "User";
         }
     }
 }

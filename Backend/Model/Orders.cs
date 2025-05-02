@@ -7,7 +7,7 @@ namespace Backend.Model
 {
     public class Orders
     {
-        public Orders(OrderRequest orderRequest, Users user)
+        public Orders(OrderRequest orderRequest, Users? user)
         {
             Phone = orderRequest.Phone;
             Email = orderRequest.Email;

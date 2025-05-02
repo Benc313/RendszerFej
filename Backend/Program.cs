@@ -4,17 +4,39 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<dbContext>(options => 
+// Add CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173") // Adjust port if your frontend runs elsewhere
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // Needed for cookies
+        });
+});
+
+
+builder.Services.AddDbContext<dbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 // Add services to the container.
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddControllers();
+// Configure JSON options to handle cycles
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // Or ReferenceHandler.Preserve
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull; // Optional: Ignore nulls
+    });
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -50,15 +72,15 @@ builder.Services.AddAuthorization(options =>
 {
 	options.AddPolicy("AdminPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Admin");
+		policy.RequireClaim("role", "Admin"); // Already correct
 	});
 	options.AddPolicy("CashierPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Cashier");
+		policy.RequireClaim("role", "Cashier"); // Already correct
 	});
 	options.AddPolicy("UserPolicy", policy =>
 	{
-		policy.RequireClaim("role", "User");
+		policy.RequireClaim("role", "User"); // Already correct
 	});
 });
 var app = builder.Build();
@@ -67,6 +89,7 @@ using (var scope = app.Services.CreateScope())
 {
 	var dbContext = scope.ServiceProvider.GetRequiredService<dbContext>();
 	dbContext.Database.Migrate();
+    DataSeeder.SeedData(dbContext);
 }
 
 // Configure the HTTP request pipeline.
@@ -80,8 +103,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Serve static files (like index.html, CSS, JS from wwwroot)
+app.UseStaticFiles(); // <-- Add this line
+
+// Use CORS policy
+app.UseCors("AllowFrontend"); // Ensure CORS is before Auth
+
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapControllers(); // API endpoints
+
+// SPA Fallback: Redirect non-API, non-file requests to index.html
+app.MapFallbackToFile("index.html"); // <-- Add this line
 
 app.Run();

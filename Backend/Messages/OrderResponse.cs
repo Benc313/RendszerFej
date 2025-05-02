@@ -14,11 +14,20 @@ public class OrderResponse
     public OrderResponse(Orders order)
     {
         Id = order.Id;
-        Phone = order.Phone;
-        Email = order.Email;
         UserId = order.UserId;
         TotalPrice = order.TotalPrice;
         Tickets = order.Tickets.Select(t => new TicketResponse(t)).ToList();
+        // Vendég rendelés esetén
+        Phone = order.Phone;
+        Email = order.Email;
+        // Regisztrált felhasználó esetén (ha van user)
+        if (order.User != null)
+        {
+            if (string.IsNullOrEmpty(Email))
+                Email = order.User.Email;
+            if (string.IsNullOrEmpty(Phone))
+                Phone = order.User.Phone;
+        }
     }
 }
 
