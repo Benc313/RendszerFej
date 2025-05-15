@@ -1,4 +1,3 @@
-// filepath: c:\Users\kresz\source\repos\RendszerFej-1\frontend\src\main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom';

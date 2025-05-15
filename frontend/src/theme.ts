@@ -2,7 +2,6 @@
 import { createTheme, MantineTheme, rgba } from '@mantine/core';
 
 export const theme = createTheme({
-  // ... (primaryColor, other components) ...
   primaryColor: 'yellow',
 
   components: {

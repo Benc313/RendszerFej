@@ -1,6 +1,6 @@
 import { Title, Text, Container, Button, Group } from '@mantine/core';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth
+import { useAuth } from '../contexts/AuthContext';
 
 function HomePage() {
     const { user } = useAuth(); // Felhasználói adatok lekérése
@@ -33,7 +33,6 @@ function HomePage() {
                     </Button>
                 )}
             </Group>
-            {/* Ide később bekerülhetnek kiemelt filmek vagy közelgő vetítések */}
         </Container>
     );
 }

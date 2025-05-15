@@ -11,7 +11,7 @@ function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth(); // Csak a login függvényt használjuk a context-ből
+    const { login } = useAuth();
 
     const form = useForm({
         initialValues: {
@@ -28,7 +28,7 @@ function LoginPage() {
         setIsLoading(true);
         setError(null);
         try {
-            // Az AuthContext login függvényét használjuk az API közvetlen hívása helyett
+            // Bejelentkezés a context login függvényével
             const userData = await login(values.email, values.password);
             
             // Sikeres bejelentkezés értesítés
@@ -41,7 +41,6 @@ function LoginPage() {
             
             navigate('/'); // Átirányítás a főoldalra
         } catch (err) {
-            // Az apiCall már kezeli a notificationt, csak az error state-et állítjuk
             setError(err instanceof Error ? err.message : 'A bejelentkezés sikertelen. Ellenőrizd az adatokat.');
         } finally {
             setIsLoading(false);

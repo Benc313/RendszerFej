@@ -1,10 +1,7 @@
-/* filepath: c:\Users\kresz\source\repos\RendszerFej-1\frontend\src\App.css */
 #root {
   width: 100%;
   min-height: 100vh;
 }
-
-/* ... többi szabály (logo, card, stb.) változatlan maradhat, vagy később finomítható ... */
 
 .logo {
   height: 6em;

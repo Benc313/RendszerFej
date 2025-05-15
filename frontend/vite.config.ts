@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       // Proxy all requests starting with /api to the backend server
       '/api': {
-        target: 'http://localhost:5196', // Your backend address
+        target: 'http://localhost:5196', // backend address
         changeOrigin: true,
         secure: false,      // If backend is not HTTPS
         // No rewrite needed if backend routes also start with /api

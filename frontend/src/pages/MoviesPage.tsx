@@ -4,12 +4,12 @@ import { SimpleGrid, Card, Text, Title, Loader, Alert, Button } from '@mantine/c
 import { IconAlertCircle } from '@tabler/icons-react';
 import { apiCall } from '../services/api';
 
-// Backend AllMovieResponse alapján
+// Backend AllMovieResponse 
 interface MovieSummary {
     id: number;
     title: string;
     description: string;
-    duration: number; // Backend uint, itt number
+    duration: number; 
 }
 
 function MoviesPage() {
@@ -22,7 +22,7 @@ function MoviesPage() {
             setLoading(true);
             setError(null);
             try {
-                // Helyes végpont: /api/movie
+                // végpont: /api/movie
                 const data = await apiCall<MovieSummary[]>('/api/movie');
                 setMovies(data);
             } catch (err) {

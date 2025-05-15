@@ -32,7 +32,7 @@ interface TicketData {
     price: number;
     status: string;
     screeningId: number;
-    screening?: NestedScreeningData; // Feltételezzük, hogy a backend ezt beágyazza
+    screening?: NestedScreeningData; 
 }
 
 interface OrderData {
@@ -97,8 +97,7 @@ function ProfilePage() {
                 confirmPassword: '',
             });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]); // detailsForm eltávolítva
+    }, [user]); 
 
     // --- Orders State ---
     const [orders, setOrders] = useState<OrderData[]>([]);
@@ -114,7 +113,7 @@ function ProfilePage() {
 
     // --- Helper Functions ---
     const formatScreeningDate = (dateString: string | undefined) => {
-        if (!dateString) return 'N/A'; // Ha nincs dátum, 'N/A'-t adunk vissza
+        if (!dateString) return 'N/A'; // Ha nincs dátum, 'N/A'
         try {
             return new Date(dateString).toLocaleString('hu-HU', {
                 year: 'numeric', month: 'long', day: 'numeric',
@@ -159,7 +158,7 @@ function ProfilePage() {
                 data: updateData,
             });
             setDetailsSuccess('Profile updated successfully!');
-            await checkAuthStatus(); // Refresh user data in context
+            await checkAuthStatus(); 
 
         } catch (err) {
             setDetailsError(err instanceof Error ? err.message : 'Failed to update profile.');
@@ -218,9 +217,9 @@ function ProfilePage() {
         setCancelError(null);
         setCancelSuccess(null);
         try {
-            await apiCall<void>(`/api/order/${orderId}`, { method: 'DELETE' }); // Javított endpoint
+            await apiCall<void>(`/api/order/${orderId}`, { method: 'DELETE' }); 
             setCancelSuccess(`Order ${orderId} cancelled successfully.`);
-            await fetchOrders(); // Refresh list after cancellation
+            await fetchOrders(); // Refresh cancel után
         } catch (err) {
              const errorMsg = err instanceof Error ? err.message : `Failed to cancel order ${orderId}.`;
              if (errorMsg.includes("Cannot cancel order within 4 hours of screening")) {
@@ -236,15 +235,15 @@ function ProfilePage() {
         if (activeTab === 'orders' && user) {
             fetchOrders();
         }
-        // Clear messages on tab change
+        // tab változáskor töröljük a hibákat és sikerüzeneteket
         setDetailsError(null);
         setDetailsSuccess(null);
         setOrdersError(null);
         setCancelError(null);
         setCancelSuccess(null);
-    }, [activeTab, user, fetchOrders]); // fetchOrders added
+    }, [activeTab, user, fetchOrders]); 
 
-    // --- Loading/Initial State ---
+    // --- Loading/kezdő állapot ---
     if (!user) {
         return <Alert color="orange">Kérjük, jelentkezz be a profilod megtekintéséhez.</Alert>;
     }

@@ -10,8 +10,7 @@ public class MovieResponse
     public string Description { get; set; }
     public uint Duration { get; set; }
 
-
-    // Use ScreeningResponse to avoid cycles and control data shape
+    //screeningek listája
     public List<ScreeningResponse> Screenings { get; set; } = new List<ScreeningResponse>();
 
     public MovieResponse(Movie movie)
@@ -20,9 +19,8 @@ public class MovieResponse
         Title = movie.Title;
         Description = movie.Description;
         Duration = movie.Duration;
-        // Map Screenings to ScreeningResponse
+
         Screenings = movie.Screenings?.Select(s => new ScreeningResponse(s)).ToList() ?? new List<ScreeningResponse>();
-    }
-    // Add a parameterless constructor if needed for other scenarios
+    }  
     public MovieResponse() { }
 }

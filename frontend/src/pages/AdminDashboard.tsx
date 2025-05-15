@@ -1,13 +1,12 @@
-// Filepath: c:\Users\Ati\source\repos\RendszerFej\frontend\src\pages\AdminDashboard.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, PasswordInput, Textarea, NumberInput, Tabs, Select } from '@mantine/core'; // Select hozzáadva
-import { DateTimePicker } from '@mantine/dates'; // DateTimePicker importálása
+import { Table, Button, Title, Paper, Alert, Loader, Group, Modal, TextInput, PasswordInput, Textarea, NumberInput, Tabs, Select } from '@mantine/core'; 
+import { DateTimePicker } from '@mantine/dates'; 
 import { useForm } from '@mantine/form';
-import { IconAlertCircle, IconTrash, IconLock, IconUserPlus, IconPencil, IconMovie, IconUsers, IconBuildingSkyscraper, IconCalendarEvent, IconCheck, IconLockOpen } from '@tabler/icons-react'; // IconCheck hozzáadva
-import { notifications } from '@mantine/notifications'; // notifications importálása
-import '@mantine/dates/styles.css'; // Dátumválasztó stílusok
+import { IconAlertCircle, IconTrash, IconLock, IconUserPlus, IconPencil, IconMovie, IconUsers, IconBuildingSkyscraper, IconCalendarEvent, IconCheck, IconLockOpen } from '@tabler/icons-react'; 
+import { notifications } from '@mantine/notifications'; 
+import '@mantine/dates/styles.css'; 
 
 // --- Felhasználókezelési Interfészek ---
 interface UserData {
@@ -16,7 +15,7 @@ interface UserData {
     email: string;
     role: 'Admin' | 'Cashier' | 'User';
     phone: string;
-    bannedTill?: string | null; // Tiltás lejárati ideje (opcionális)
+    bannedTill?: string | null; 
 }
 interface NewCashierForm { // Új pénztáros űrlap adatai
     name: string;
@@ -24,10 +23,9 @@ interface NewCashierForm { // Új pénztáros űrlap adatai
     phoneNumber: string;
     password: string;
 }
-// --- Felhasználókezelési Interfészek Vége ---
 
 // --- Filmkezelési Interfészek ---
-interface MovieData { // Film adatai (backend és frontend)
+interface MovieData { // Film adatai
     id: number;
     title: string;
     description: string;
@@ -36,36 +34,33 @@ interface MovieData { // Film adatai (backend és frontend)
 interface MovieFormValues { // Film űrlap értékei
     title: string;
     description: string;
-    duration: number | ''; // Lehet üres string a NumberInput miatt
+    duration: number | ''; 
 }
-// --- Filmkezelési Interfészek Vége ---
 
 // --- Teremkezelési Interfészek ---
-interface RoomData { // Terem adatai (backend és frontend)
+interface RoomData { // Terem adatai
     id: number;
-    roomName: string; // Backend: Terem.Room
-    seats: number;    // Backend: Terem.Seats
+    roomName: string; 
+    seats: number;    
 }
 interface RoomFormValues { // Terem űrlap értékei
     roomName: string;
-    seats: number | ''; // Lehet üres string a NumberInput miatt
+    seats: number | ''; 
 }
-// --- Teremkezelési Interfészek Vége ---
+
 
 // --- Vetítéskezelési Interfészek ---
-// Interfész a Backend ScreeningResponse struktúrájához igazítva
-// Módosítva a tényleges API válasz alapján
 interface BackendScreeningResponse {
     id: number;
-    screeningDate: string; // ISO string formátumú dátum
+    screeningDate: string; 
     price: number;
-    movieName: string; // Közvetlen property
-    roomName: string;  // Közvetlen property (feltételezve, hogy a backend ezt küldi, a logban 'room' volt, de a többi kódrészlet roomName-et használ)
-    movieId: number;   // Közvetlen property
-    roomId: number;    // Közvetlen property
+    movieName: string; 
+    roomName: string;  
+    movieId: number;   
+    roomId: number;    
 }
 
-// Frontend állapot interfész - kényelmi ID-kkal kiegészítve
+// Frontend állapot interfész
 interface ScreeningData {
     id: number;
     screeningDate: string; // ISO string
@@ -76,14 +71,14 @@ interface ScreeningData {
     roomId: number;     // Űrlap kitöltéshez/szerkesztéshez
 }
 
-// Backend ScreeningRequest alapján (frontend űrlaphoz igazítva)
+// Backend ScreeningRequest interfész
 interface ScreeningFormValues {
     movieId: string | null; // Select komponens string ID-t ad vissza
     roomId: string | null;  // Select komponens string ID-t ad vissza
     screeningDate: Date | null; // Dátum objektum az űrlapon
     price: number | ''; // Lehet üres string a NumberInput miatt
 }
-// --- Vetítéskezelési Interfészek Vége ---
+
 
 
 function AdminDashboard() {
@@ -165,18 +160,15 @@ function AdminDashboard() {
             price: (value) => (value !== '' && value >= 0 ? null : 'Az árnak nem negatív számnak kell lennie'),
         },
     });
-    // --- Űrlapok Kezelése Vége ---
+    // -- Űrlapok Kezelése Vége ---
 
     // --- Adatlekérdezések ---
     // Felhasználók lekérdezése
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true);
         setUsersError(null);
-        setUserActionError(null); // Korábbi műveleti hiba törlése
+        setUserActionError(null); // Hiba törlése
         try {
-            // Figyelem: Ideális esetben itt egy admin-specifikus végpont kellene, pl. /api/admin/users
-            // Jelenleg a /api/user/users végpontot használja, ami lehet, hogy minden felhasználót visszaad.
-            // A műveletek (törlés, tiltás) viszont a /api/admin végpontokat használják helyesen.
             const data = await apiCall<UserData[]>('/api/user/users');
             setUsers(data);
         } catch (err) {
@@ -222,18 +214,17 @@ function AdminDashboard() {
         setScreeningsError(null);
         setScreeningActionError(null);
         try {
-            // Backend válasz (BackendScreeningResponse) lekérdezése
+            // Backend válaszának lekérdezése
             const data = await apiCall<BackendScreeningResponse[]>('/api/screening');
             // Backend válasz átalakítása a frontend állapot (ScreeningData) struktúrájára
-            // A filter felesleges, mert a backend már a szükséges adatokat küldi
             const mappedData: ScreeningData[] = data.map(s => ({
                 id: s.id,
                 screeningDate: s.screeningDate,
                 price: s.price,
-                movieTitle: s.movieName, // Helyes property használata
-                roomName: s.roomName,   // Helyes property használata
-                movieId: s.movieId,     // Helyes property használata
-                roomId: s.roomId,       // Helyes property használata
+                movieTitle: s.movieName,
+                roomName: s.roomName,
+                movieId: s.movieId,     
+                roomId: s.roomId,       
             }));
             setScreenings(mappedData);
         } catch (err) {
@@ -247,7 +238,7 @@ function AdminDashboard() {
     useEffect(() => {
         fetchMovies();
         fetchRooms();
-    }, [fetchMovies, fetchRooms]); // Csak a függvény referenciáktól függ
+    }, [fetchMovies, fetchRooms]);
 
 
     // Adatok lekérdezése az aktív fül alapján
@@ -255,18 +246,14 @@ function AdminDashboard() {
         if (activeTab === 'users') {
             fetchUsers();
         } else if (activeTab === 'movies') {
-            // Filmek már lehet, hogy le vannak kérdezve, de ha kell, újra lekérdezzük
             if (movies.length === 0) fetchMovies();
         } else if (activeTab === 'rooms') {
-            // Termek már lehet, hogy le vannak kérdezve, de ha kell, újra lekérdezzük
             if (rooms.length === 0) fetchRooms();
         } else if (activeTab === 'screenings') {
             fetchScreenings();
-            // Biztosítjuk, hogy a filmek és termek elérhetőek legyenek az űrlaphoz
             if (movies.length === 0) fetchMovies();
             if (rooms.length === 0) fetchRooms();
         }
-        // Függőségek: aktív fül, lekérdező függvények, és a filmek/termek listájának hossza (hogy újra lekérdezzen, ha üres)
     }, [activeTab, fetchUsers, fetchMovies, fetchRooms, fetchScreenings, movies.length, rooms.length]);
     // --- Adatlekérdezések Vége ---
 
@@ -336,7 +323,6 @@ function AdminDashboard() {
     const handleAddCashier = async (values: NewCashierForm) => {
         setUserActionError(null);
         try {
-            // Helyes végpont: /api/admin/cashier
             await apiCall<void>('/api/admin/cashier', {
                 method: 'POST',
                 data: values,
@@ -354,12 +340,11 @@ function AdminDashboard() {
             setUserActionError(err instanceof Error ? err.message : "Pénztáros hozzáadása sikertelen.");
         }
      };
-     // Felhasználó (pénztáros) törlése
+     // Felhasználó törlése
     const handleDeleteUser = async (userId: number, userName: string) => {
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót? Ez a művelet nem vonható vissza.`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /api/admin/user/{id}
             await apiCall<void>(`/api/admin/user/${userId}`, { method: 'DELETE' });
             notifications.show({ // Sikeres törlés értesítés
                 title: 'Felhasználó törölve',
@@ -377,7 +362,6 @@ function AdminDashboard() {
          if (!window.confirm(`Biztosan tiltani szeretnéd a(z) ${userName} (ID: ${userId}) felhasználót 30 napra?`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /api/admin/ban/{id}
             const response = await apiCall<{ message: string }>(`/api/admin/ban/${userId}`, { method: 'POST' });
             notifications.show({ // Sikeres tiltás értesítés
                 title: 'Felhasználó tiltva',
@@ -395,20 +379,19 @@ function AdminDashboard() {
         if (!window.confirm(`Biztosan fel szeretnéd oldani a(z) ${userName} (ID: ${userId}) felhasználó tiltását?`)) return;
         setUserActionError(null);
         try {
-            // Helyes végpont: /api/admin/unban/{id}
             const response = await apiCall<{ message: string }>(`/api/admin/unban/${userId}`, { method: 'POST' });
             notifications.show({ // Sikeres feloldás értesítés
                 title: 'Tiltás feloldva',
                 message: response.message || `A(z) ${userName} (ID: ${userId}) felhasználó tiltása sikeresen feloldva.`,
                 color: 'green',
-                icon: <IconLockOpen size={16} /> // Megfelelő ikon
+                icon: <IconLockOpen size={16} /> 
             });
             if (activeTab === 'users') await fetchUsers(); // Lista frissítése
         } catch (err) {
              setUserActionError(err instanceof Error ? err.message : `Felhasználó (ID: ${userId}) tiltásának feloldása sikertelen.`);
         }
      };
-     // Tiltás dátumának formázása olvasható alakra
+     // Tiltás dátumának formázása 
     const formatBanDate = (dateString: string | null | undefined) => {
         if (!dateString) return 'Nincs tiltva';
         try {
@@ -430,8 +413,7 @@ function AdminDashboard() {
             duration: Number(values.duration) // String -> Number konverzió
         };
         try {
-            const action = editingMovie ? 'módosítva' : 'hozzáadva'; // Művelet neve az üzenethez
-            // Removed unused variable 'response'
+            const action = editingMovie ? 'módosítva' : 'hozzáadva'; 
             if (editingMovie) { // Szerkesztés (PUT kérés)
                 await apiCall<MovieData>(`/api/movie/${editingMovie.id}`, { method: 'PUT', data: movieData });
             } else { // Hozzáadás (POST kérés)
@@ -490,7 +472,6 @@ function AdminDashboard() {
             if (editingRoom) { // Szerkesztés (PUT)
                 await apiCall<RoomData>(`/api/room/${editingRoom.id}`, { method: 'PUT', data: roomData });
             } else { // Hozzáadás (POST)
-                // A backend itt valószínűleg csak 201 Created vagy 200 OK választ ad, nem feltétlen a terem adatait
                 await apiCall<void>('/api/room', { method: 'POST', data: roomData });
             }
             notifications.show({ // Sikeres művelet értesítés
@@ -508,7 +489,6 @@ function AdminDashboard() {
     };
     // Terem törlése
     const handleDeleteRoom = async (roomId: number, roomName: string) => {
-        // TODO: Frontend oldali ellenőrzés is lehetne, de a backend valószínűleg kezeli.
         if (!window.confirm(`Biztosan törölni szeretnéd a(z) "${roomName}" (ID: ${roomId}) nevű termet? Ez a művelet nem vonható vissza.`)) return;
         setRoomActionError(null);
         try {
@@ -524,8 +504,7 @@ function AdminDashboard() {
         } catch (err) {
              // Specifikus hiba kezelése (ha a backend jelzi)
              const errorMsg = err instanceof Error ? err.message : `Terem (ID: ${roomId}) törlése sikertelen.`;
-             // Példa: A backend hibaüzenet alapján (ezt pontosítani kell a valós üzenethez)
-             if (errorMsg.includes("Cannot delete room with active screenings")) { // Feltételezett hibaüzenet
+             if (errorMsg.includes("Cannot delete room with active screenings")) { 
                  setRoomActionError("Ez a terem nem törölhető, mert aktív vetítések tartoznak hozzá.");
              } else {
                  setRoomActionError(errorMsg);
@@ -547,7 +526,7 @@ function AdminDashboard() {
         const selectedMovie = movies.find(m => m.id.toString() === values.movieId);
         const selectedRoom = rooms.find(r => r.id.toString() === values.roomId);
 
-        // Ellenőrzés (bár az űrlap validációja is elkapja)
+        // Ellenőrzés
         if (!selectedMovie || !selectedRoom || !values.screeningDate) {
             setScreeningActionError("Érvénytelen film, terem vagy dátum lett kiválasztva.");
             notifications.show({
@@ -558,17 +537,17 @@ function AdminDashboard() {
             return;
         }
 
-        // Payload összeállítása a Backend.Messages.ScreeningRequest alapján
+        // Payload összeállítása
         const screeningPayload = {
-            movieTitle: selectedMovie.title,       // Cím a kiválasztott film objektumból
-            teremName: selectedRoom.roomName,      // Teremnév a kiválasztott terem objektumból
+            movieTitle: selectedMovie.title,       // Cím a kiválasztott filmből
+            teremName: selectedRoom.roomName,      // Teremnév a kiválasztott teremből
             screeningDate: values.screeningDate.toISOString(), // ISO string formátumban küldés
             price: Number(values.price) // Ár számként
         };
 
         try {
             const action = editingScreening ? 'módosítva' : 'hozzáadva';
-            const endpoint = editingScreening ? `/api/screening/${editingScreening.id}` : '/api/screening'; // Végpont meghatározása
+            const endpoint = editingScreening ? `/api/screening/${editingScreening.id}` : '/api/screening'; 
             const method = editingScreening ? 'PUT' : 'POST';
 
             // Helyes payload (screeningPayload) használata a kérésben
@@ -621,7 +600,7 @@ function AdminDashboard() {
     // --- Táblázat Sorok Generálása ---
     // Felhasználók táblázat sorai
     const userRows = users.map((u) => {
-        const isBanned = u.bannedTill && new Date(u.bannedTill) > new Date(); // Ellenőrzi, hogy a tiltás aktív-e
+        const isBanned = u.bannedTill && new Date(u.bannedTill) > new Date(); // tiltás aktív-e
         return (
             <Table.Tr key={u.id}>
                 <Table.Td>{u.id}</Table.Td>
@@ -682,7 +661,7 @@ function AdminDashboard() {
         </Table.Tr>
     ));
 
-    // Vetítések táblázat sorai (a frontend ScreeningData alapján)
+    // Vetítések táblázat sorai ScreeningData
     const screeningRows = screenings.map((s) => (
         <Table.Tr key={s.id}>
             <Table.Td>{s.id}</Table.Td>

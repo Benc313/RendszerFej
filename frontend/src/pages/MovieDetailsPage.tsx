@@ -7,13 +7,13 @@ import { useForm } from '@mantine/form';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-// Backend MovieResponse alapján (részleges)
+// Backend MovieResponse 
 interface Screening {
     id: number;
-    screeningDate: string; // ISO string
+    screeningDate: string; 
     price: number;
     movie: MovieSummary; // Csak az összefoglaló adatok
-    room: string; // Vagy egy Room interfész, ha több adat kell
+    room: string; 
 }
 
 interface MovieSummary {
@@ -21,7 +21,6 @@ interface MovieSummary {
     title: string;
     duration: number;
     description: string;
-    // ...esetleg további mezők...
 }
 
 interface MovieDetails extends MovieSummary { // MovieSummary az előző fájlból
@@ -45,7 +44,6 @@ interface OrderRequest {
 interface OrderResponse {
     id: number;
     totalPrice: number;
-    // ...többi mező...
 }
 
 // Helper function to format date
@@ -154,8 +152,6 @@ function MovieDetailsPage() {
                 data: orderRequest,
             });
             setOrderSuccess(response);
-            // Optionally close modal after a delay or keep it open to show success
-            // setTimeout(close, 2000);
         } catch (err) {
             const errorMessage = (err instanceof Error) ? err.message : "Nem sikerült a jegyvásárlás.";
             setOrderError(errorMessage);
@@ -215,7 +211,7 @@ function MovieDetailsPage() {
                 onClose={close}
                 title="Jegyvásárlás megerősítése"
                 centered
-                withinPortal={true} // Explicit portal használat (alapértelmezett)
+                withinPortal={true} // Explicit portal használat 
             >
                 {orderError && <Alert icon={<IconAlertCircle size="1rem" />} title="Hiba" color="red" mb="md">{orderError}</Alert>}
                 {orderSuccess ? (

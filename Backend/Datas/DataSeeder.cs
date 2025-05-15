@@ -10,13 +10,12 @@ namespace expenseTracker.Data
     {
         public static void SeedData(dbContext context)
         {
-            // Check if data already exists
             if (context.Users.Any() || context.Movies.Any() || context.Terems.Any() || context.Screenings.Any())
             {
-                return; // DB has been seeded
+                return; 
             }
 
-            // Seed Users
+            // felhasználók létrehozása (Admin, Cashier, User)
             var users = new[]
             {
                 new Users { Name = "Admin User", Email = "admin@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("adminpass"), Phone = "1234567890", Role = "Admin" }, // Already correct
@@ -24,9 +23,9 @@ namespace expenseTracker.Data
                 new Users { Name = "Regular User", Email = "user@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("userpass"), Phone = "1122334455", Role = "User" } // Already correct
             };
             context.Users.AddRange(users);
-            context.SaveChanges(); // Save users first if needed, though not strictly necessary here
+            context.SaveChanges(); 
 
-            // Seed Movies (külföldi filmcímek, magyar leírásokkal)
+            // filmek létrehozása
             var movies = new[]
             {
                 new Movie { Title = "Inception", Description = "Egy profi tolvaj képes belépni mások álmaiba, hogy ellopja a legféltettebb titkaikat.", Duration = 148 },
@@ -41,7 +40,7 @@ namespace expenseTracker.Data
             context.Movies.AddRange(movies);
             context.SaveChanges();
 
-            // Seed Rooms (Terems) - több terem
+            // Terem létrehozása
             var rooms = new[]
             {
                 new Terem { Room = "A", Seats = 50 },
@@ -52,7 +51,7 @@ namespace expenseTracker.Data
             context.Terems.AddRange(rooms);
             context.SaveChanges();
 
-            // Seed Screenings - minden film több napon, több teremben
+            // Screeningek létrehozása
             var screenings = new System.Collections.Generic.List<Screening>();
             int priceBase = 2000;
             for (int m = 0; m < movies.Length; m++)

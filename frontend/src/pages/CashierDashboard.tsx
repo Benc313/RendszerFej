@@ -1,24 +1,22 @@
-// Filepath: c:\Users\Ati\source\repos\RendszerFej\frontend\src\pages\CashierDashboard.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { apiCall } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-// Select, Radio, Stack hozzáadva az importokhoz
 import { Table, Button, Title, Paper, Alert, Loader, Group, TextInput, Tabs, NumberInput, Box, List, Select, Radio, Stack } from '@mantine/core';
 import { IconAlertCircle, IconTicket, IconListDetails, IconShoppingCartPlus, IconCheck } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 
-// --- Rendelés Interfész (OrderResponse alapján) ---
+// --- Rendelés Interfész OrderResponseból---
 interface OrderData {
     id: number;
-    phone?: string | null; // Telefonszám (kisbetűs)
-    email?: string | null; // Email cím (kisbetűs)
+    phone?: string | null; // Telefonszám 
+    email?: string | null; // Email cím
     userId?: number | null; // Felhasználó ID (opcionális, ha regisztrált)
     totalPrice: number; // Teljes ár
     tickets: TicketData[]; // Jegyek listája
 }
 
-// --- Jegy Interfész (TicketResponse alapján) ---
+// --- Jegy Interfész TicketResponseból ---
 interface TicketData {
     id: number;
     seatNumber: number; // Ülésszám
@@ -29,21 +27,21 @@ interface TicketData {
 
 // --- Jegyérvényesítő Űrlap Interfész ---
 interface ValidateTicketForm {
-    ticketId: number | ''; // Jegy ID (lehet üres string a NumberInput miatt)
+    ticketId: number | ''; // Jegy ID 
 }
 
-// --- Vetítés Interfész (ScreeningResponse alapján, egyszerűsítve a dropdownhoz) ---
+// --- Vetítés Interfész ScreeningResponseból ---
 interface ScreeningOption {
     id: number;
     movieTitle: string;
     roomName: string;
-    screeningDate: string; // ISO string
+    screeningDate: string;
     price: number;
 }
 
 // --- Vásárlási Űrlap Interfész ---
 interface PurchaseFormValues {
-    screeningId: string | null; // Vetítés ID (Select stringet ad vissza)
+    screeningId: string | null; // Vetítés ID 
     seatNumber: number | ''; // Ülésszám
     purchaseType: 'guest' | 'user'; // Vásárló típusa
     userId: number | ''; // Felhasználó ID (ha purchaseType === 'user')
@@ -58,7 +56,6 @@ function CashierDashboard() {
     // --- Jegyérvényesítés Állapotai ---
     const [validationLoading, setValidationLoading] = useState(false); // Érvényesítés folyamatban
     const [validationError, setValidationError] = useState<string | null>(null); // Hiba az érvényesítés során
-    // const [validationSuccess, setValidationSuccess] = useState<string | null>(null); // Sikeres üzenet helyett notification használata
 
     // --- Rendelések Állapotai ---
     const [orders, setOrders] = useState<OrderData[]>([]); // Rendelések listája
@@ -96,7 +93,7 @@ function CashierDashboard() {
         validate: (values) => ({
             screeningId: values.screeningId ? null : 'Vetítés kiválasztása kötelező',
             seatNumber: values.seatNumber !== '' && values.seatNumber > 0 ? null : 'Érvényes ülésszám megadása kötelező',
-            // Feltételes validáció
+        
             userId: values.purchaseType === 'user' && (values.userId === '' || values.userId <= 0) ? 'Érvényes Felhasználó ID megadása kötelező' : null,
             email: values.purchaseType === 'guest' && !/^\S+@\S+$/.test(values.email) ? 'Érvénytelen email cím' : null,
             phone: values.purchaseType === 'guest' && values.phone.trim().length < 6 ? 'Telefonszám megadása kötelező (min. 6 karakter)' : null,
@@ -160,7 +157,6 @@ function CashierDashboard() {
                 icon: <IconCheck size={16} />
             });
             validationForm.reset(); // Űrlap ürítése
-            // Opcionálisan frissítjük a rendelések listáját, ha az "orders" fül aktív
             if (activeTab === 'orders') await fetchOrders();
         } catch (err) {
             setValidationError(err instanceof Error ? err.message : `A(z) ${values.ticketId} ID-jű jegy érvényesítése sikertelen.`);
@@ -200,7 +196,6 @@ function CashierDashboard() {
                 icon: <IconCheck size={16} />
             });
             purchaseForm.reset(); // Űrlap ürítése
-            // Opcionálisan frissítjük a rendelések listáját, ha az "orders" fül aktív
             if (activeTab === 'orders') await fetchOrders();
         } catch (err) {
             setPurchaseError(err instanceof Error ? err.message : "Jegyvásárlás sikertelen.");
@@ -259,7 +254,6 @@ function CashierDashboard() {
     // --- Dropdown Adatok Előkészítése (Vásárláshoz) ---
     const screeningOptionsForSelect = screenings.map(s => ({
         value: s.id.toString(),
-        // Biztonságos hozzáférés itt is, bár a fetchScreenings már szűrt
         label: `${s.movieTitle || 'Ismeretlen film'} - ${s.roomName || 'Ismeretlen terem'} (${new Date(s.screeningDate).toLocaleString('hu-HU')}) - ${s.price} Ft`,
     }));
 
@@ -280,8 +274,7 @@ function CashierDashboard() {
                     <Title order={4} mb="md">Jegy Érvényesítése ID Alapján</Title>
                     {/* Hibaüzenet érvényesítéskor */}
                     {validationError && <Alert icon={<IconAlertCircle size="1rem" />} title="Érvényesítési Hiba" color="red" mb="md" withCloseButton onClose={() => setValidationError(null)}>{validationError}</Alert>}
-                    {/* Sikeres üzenet helyett notification jelenik meg */}
-                    {/* {validationSuccess && <Alert icon={<IconCheck size="1rem" />} title="Sikeres Érvényesítés" color="green" mb="md" withCloseButton onClose={() => setValidationSuccess(null)}>{validationSuccess}</Alert>} */}
+                 
                     {/* Érvényesítő űrlap */}
                     <Box component="form" onSubmit={validationForm.onSubmit(handleValidateTicket)} maw={400}>
                         <NumberInput
@@ -315,7 +308,6 @@ function CashierDashboard() {
                                     <Table.Th>Telefon</Table.Th>
                                     <Table.Th>Teljes Ár</Table.Th>
                                     <Table.Th>Jegyek</Table.Th>
-                                    {/* <Table.Th>Műveletek</Table.Th> */}
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>{orderRows}</Table.Tbody>

@@ -1,7 +1,4 @@
-
-
-// Removed unused API_BASE_URL constant
-
+// API hívások központosított kezelése
 interface ApiCallOptions extends RequestInit {
     data?: unknown;
 }

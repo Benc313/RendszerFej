@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { TextInput, PasswordInput, Button, Paper, Title, Container, Alert, Group } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -39,14 +39,13 @@ function RegisterPage() {
         }
 
         try {
-            // Helyes endpoint és mezőnevek
             const response = await apiCall<{ success: boolean; message: string }>('/api/auth/register', {
                 method: 'POST',
                 data: {
                     name: values.name,
                     email: values.email,
                     password: values.password,
-                    phoneNumber: values.phoneNumber, // Helyes mezőnév
+                    phoneNumber: values.phoneNumber, 
                 },
             });
 

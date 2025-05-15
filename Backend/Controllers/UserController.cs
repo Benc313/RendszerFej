@@ -10,12 +10,12 @@ using ValidationResult = FluentValidation.Results.ValidationResult;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Linq; // Add this for LINQ methods like Select
+using System.Linq; 
 
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // <-- Add this line
+    [Route("api/[controller]")] 
     public class UserController : ControllerBase
     {
         private readonly dbContext _db;
@@ -27,7 +27,7 @@ namespace Backend.Controllers
         // ÚJ VÉGPONT: Bejelentkezett felhasználó adatainak lekérése
         [HttpGet("me")]
         [Authorize]
-        public async Task<ActionResult<MeResponse>> GetCurrentUser() // Visszatérési típus MeResponse
+        public async Task<ActionResult<MeResponse>> GetCurrentUser() 
         {
             var userIdString = User.FindFirstValue("id");
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
@@ -58,78 +58,60 @@ namespace Backend.Controllers
             }
 
             var orders = await _db.Orders
-                .Where(o => o.UserId == userId) // Csak az adott felhasználó rendelései
+                .Where(o => o.UserId == userId) 
                 .Include(o => o.Tickets)
                     .ThenInclude(t => t.Screening)
-                        .ThenInclude(s => s.Movie) // Include Movie details
+                        .ThenInclude(s => s.Movie) 
                 .Include(o => o.Tickets)
                     .ThenInclude(t => t.Screening)
-                        .ThenInclude(s => s.Terem) // Include Room details
+                        .ThenInclude(s => s.Terem) 
                 .OrderByDescending(o => o.Id) // Legújabb elöl
                 .ToListAsync();
 
             if (orders == null)
             {
-                // Ha nincs rendelése, üres listát adunk vissza, nem hiba
                 return Ok(new List<OrderResponse>());
             }
 
-            // Mappelés OrderResponse-ra
             var orderResponses = orders.Select(o => new OrderResponse(o)).ToList();
             return Ok(orderResponses);
         }
 
         [HttpPut("user/{id}")]
         [Authorize] // Require authentication
-        public async Task<ActionResult> UpdateUser(int id, UserRequest userRequest) // Renamed parameter
+        public async Task<ActionResult> UpdateUser(int id, UserRequest userRequest) 
         {
-            // --- Authorization Check ---
             var userIdString = User.FindFirstValue("id");
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var currentUserId))
             {
                 return Unauthorized(new { Errors = new List<string> { "Invalid token." } });
             }
 
-            // Check if the user is trying to update their own profile
+            // user saját profilját frissíti-e
             if (currentUserId != id)
             {
-                // Allow Admins to update any user? Decide based on requirements.
-                // For now, only allow self-update.
-                 if (!User.IsInRole("Admin")) // Example: Allow Admins to bypass
+                 if (!User.IsInRole("Admin")) 
                  {
-                    return Forbid(); // User is not authorized to update this profile
+                    return Forbid(); 
                  }
             }
-            // --- End Authorization Check ---
 
             Users? existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (existingUser == null)
                 return NotFound();
 
-            // Pass the user ID to the validator
             UserUpdateValidator validator = new UserUpdateValidator(_db);
-            // Validate the incoming userRequest, not the existingUser
-            ValidationResult result = await validator.ValidateAsync(userRequest); // Use async validation
+            ValidationResult result = await validator.ValidateAsync(userRequest); 
             if (!result.IsValid)
-                // Return 400 Bad Request with validation errors
                 return BadRequest(new { Errors = result.Errors.Select(x => x.ErrorMessage).ToList() });
 
-            // Update fields only if they are provided in the request
-            // Name is not updated here based on current frontend
-            // if (!string.IsNullOrWhiteSpace(userRequest.Name))
-            //     existingUser.Name = userRequest.Name;
             if (!string.IsNullOrWhiteSpace(userRequest.Email))
             {
-                 // Check if email is changing and if it's already taken by another user (Validator handles this now)
-                 // if (userRequest.Email != existingUser.Email && await _db.Users.AnyAsync(u => u.Email == userRequest.Email && u.Id != id))
-                 // {
-                 //     return BadRequest(new { Errors = new List<string> { "Email already in use by another account." } });
-                 // }
                 existingUser.Email = userRequest.Email;
             }
             if (!string.IsNullOrWhiteSpace(userRequest.Phone))
                 existingUser.Phone = userRequest.Phone;
-            // Only hash and update password if a new one is provided
+
             if (!string.IsNullOrWhiteSpace(userRequest.Password))
                 existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
 
@@ -163,7 +145,6 @@ namespace Backend.Controllers
             return await _db.Users.AnyAsync(e => e.Id == id);
         }
 
-        //for testing purposes only --- later admin use only
         [HttpGet("users")]
         [Authorize(Roles = "Admin")] 
         public async Task<ActionResult<List<Users>>> GetUsers()

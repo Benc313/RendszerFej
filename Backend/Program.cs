@@ -14,27 +14,27 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173") // Adjust port if your frontend runs elsewhere
+            policy.WithOrigins("http://localhost:5173") 
                   .AllowAnyHeader()
                   .AllowAnyMethod()
-                  .AllowCredentials(); // Needed for cookies
+                  .AllowCredentials(); // cookiek miatt
         });
 });
 
 
 builder.Services.AddDbContext<dbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-// Add services to the container.
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure JSON options to handle cycles
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // Or ReferenceHandler.Preserve
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull; // Optional: Ignore nulls
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; 
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull; 
     });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -53,16 +53,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]))
 		};
 
-		// Add custom logic to extract the token from the cookie
 		options.Events = new JwtBearerEvents
 		{
 			OnMessageReceived = context =>
 			{
-				// Extract the token from the 'accessToken' cookie
 				var token = context.Request.Cookies["accessToken"];
 				if (!string.IsNullOrEmpty(token))
 				{
-					context.Token = token; // Set the token for validation
+					context.Token = token; 
 				}
 				return Task.CompletedTask;
 			}
@@ -72,15 +70,15 @@ builder.Services.AddAuthorization(options =>
 {
 	options.AddPolicy("AdminPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Admin"); // Already correct
+		policy.RequireClaim("role", "Admin"); 
 	});
 	options.AddPolicy("CashierPolicy", policy =>
 	{
-		policy.RequireClaim("role", "Cashier"); // Already correct
+		policy.RequireClaim("role", "Cashier"); 
 	});
 	options.AddPolicy("UserPolicy", policy =>
 	{
-		policy.RequireClaim("role", "User"); // Already correct
+		policy.RequireClaim("role", "User"); 
 	});
 });
 var app = builder.Build();
@@ -103,18 +101,15 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Serve static files (like index.html, CSS, JS from wwwroot)
-app.UseStaticFiles(); // <-- Add this line
+app.UseStaticFiles(); 
 
-// Use CORS policy
-app.UseCors("AllowFrontend"); // Ensure CORS is before Auth
+app.UseCors("AllowFrontend"); 
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers(); // API endpoints
+app.MapControllers(); 
 
-// SPA Fallback: Redirect non-API, non-file requests to index.html
-app.MapFallbackToFile("index.html"); // <-- Add this line
+app.MapFallbackToFile("index.html"); 
 
 app.Run();

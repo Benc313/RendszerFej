@@ -109,31 +109,23 @@ public class OrderController : ControllerBase
         // Check if the user owns the order or is an Admin/Cashier
         if (order.UserId != currentUserId && !User.IsInRole("Admin") && !User.IsInRole("Cashier"))
         {
-            return Forbid(); // Not authorized to cancel this order
+            return Forbid(); 
         }
-        // --- End Authorization Check ---
-
-        // Check if cancellation is allowed (e.g., screening not started)
-        // This logic might be complex depending on business rules.
-        // For simplicity, we'll allow cancellation for now.
-
-        // Remove associated tickets first (or handle cascading delete in DB)
+      
         _db.Tickets.RemoveRange(order.Tickets);
         _db.Orders.Remove(order);
 
         try
         {
             await _db.SaveChangesAsync();
-            return NoContent(); // Success, no content to return
+            return NoContent(); 
         }
         catch (DbUpdateException)
         {
-            // Log the exception details
             return StatusCode(500, new { Errors = new List<string> { "An error occurred while cancelling the order." } });
         }
         catch (Exception)
         {
-            // Log the exception details
             return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred." } });
         }
     }

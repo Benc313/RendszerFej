@@ -30,16 +30,15 @@ public class MovieController : ControllerBase
     public async Task<ActionResult<MovieResponse>> GetMovie(int id)
     {
         Movie? movie = await _db.Movies
-        .Include(m => m.Screenings) // Szükséges Include
-            .ThenInclude(s => s.Terem) // Szükséges Include
-        .Include(m => m.Screenings) // Újra Include a Tickets-hez
-            .ThenInclude(s => s.Tickets) // Szükséges Include a foglalt helyekhez
+        .Include(m => m.Screenings) 
+            .ThenInclude(s => s.Terem) 
+        .Include(m => m.Screenings) 
+            .ThenInclude(s => s.Tickets) 
         .FirstOrDefaultAsync(m => m.Id == id);
 
     if (movie == null)
         return NotFound(new { Error = "Movie not found." });
 
-    // A MovieResponse konstruktora kezeli a Screenings átalakítását
     return Ok(new MovieResponse(movie));
     }
 
@@ -63,7 +62,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")] // Already correct
+    [Authorize(Roles = "Admin")] 
     public async Task<IActionResult> UpdateMovie(int id, MovieRequest movieRequest) 
     {
         var movieToUpdate = await _db.Movies.FindAsync(id);
@@ -86,7 +85,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-   [Authorize(Roles = "Admin")] // Already correct
+   [Authorize(Roles = "Admin")] 
     public async Task<ActionResult> DeleteMovie(int id) 
     {
         var movie = await _db.Movies.Include(m => m.Screenings).FirstOrDefaultAsync(m => m.Id == id);
@@ -97,7 +96,7 @@ public class MovieController : ControllerBase
             return BadRequest(new { Error = "Cannot delete a movie with active screenings." });
 
         _db.Movies.Remove(movie);
-        await _db.SaveChangesAsync(); // Add SaveChangesAsync
-        return Ok(new { Message = "Movie deleted successfully." }); // Add return Ok
+        await _db.SaveChangesAsync(); 
+        return Ok(new { Message = "Movie deleted successfully." }); 
     }
 }

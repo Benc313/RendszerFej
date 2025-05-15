@@ -58,9 +58,9 @@ public class AuthController : ControllerBase
 	[HttpPost("login")]
 	public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
 	{
-		Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email); // Use nullable type
+		Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email); 
 		if (user == null)
-			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } }); // Corrected error message
+			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } }); 
 
 		if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
@@ -108,11 +108,9 @@ public class AuthController : ControllerBase
              Response.Cookies.Delete("accessToken", new CookieOptions
              {
                  HttpOnly = true,
-                 Secure = true, // Fontos production környezetben (HTTPS)
-                 SameSite = SameSiteMode.Strict // CSRF védelem
-                 // Domain és Path szükség szerint beállítandó, hogy biztosan törlődjön
+                 Secure = true, 
+                 SameSite = SameSiteMode.Strict 
              });
-             // Adjunk vissza egyértelmű választ
              return Ok(new { message = "Logout successful" });
          }
 
