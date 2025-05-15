@@ -99,7 +99,10 @@ public class OrderController : ControllerBase
             return Unauthorized(new { Errors = new List<string> { "Invalid token." } });
         }
 
-        var order = await _db.Orders.Include(o => o.Tickets).FirstOrDefaultAsync(o => o.Id == id);
+        var order = await _db.Orders
+            .Include(o => o.Tickets)
+            .ThenInclude(t => t.Screening) // Ensure Screening is included for each ticket
+            .FirstOrDefaultAsync(o => o.Id == id);
 
         if (order == null)
         {
@@ -110,6 +113,15 @@ public class OrderController : ControllerBase
         if (order.UserId != currentUserId && !User.IsInRole("Admin") && !User.IsInRole("Cashier"))
         {
             return Forbid(); 
+        }
+
+        // Check if any ticket in the order is for a screening starting within 4 hours
+        foreach (var ticket in order.Tickets)
+        {
+            if (ticket.Screening != null && ticket.Screening.ScreeningDate <= DateTime.UtcNow.AddHours(4))
+            {
+                return BadRequest(new { Errors = new List<string> { "Cannot cancel order: one or more screenings start within 4 hours." } });
+            }
         }
       
         _db.Tickets.RemoveRange(order.Tickets);
