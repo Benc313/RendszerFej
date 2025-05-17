@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("/room")]
+[Route("api/[controller]")]
 public class RoomController : ControllerBase
 {
 	private readonly dbContext _db;
@@ -34,15 +34,16 @@ public class RoomController : ControllerBase
 				return BadRequest(new { Errors = new List<string> { "Room must have a positive number of seats" } });
 			}
 
-			_db.Terems.Add(new Terem(roomRequest));
+			var newRoom = new Terem(roomRequest); 
+			_db.Terems.Add(newRoom);
 			await _db.SaveChangesAsync();
-			return Ok();
+			return CreatedAtAction(nameof(GetRoom), new { id = newRoom.Id }, new RoomResponse(newRoom)); 
 		}
-		catch (DbUpdateException ex)
+		catch (DbUpdateException)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the room. Please try again later." } });
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." } });
 		}
@@ -60,9 +61,9 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> GetRoom(int id)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
-			return NotFound();
+			 return NotFound(new { Errors = new List<string> { "Room not found" } });
 		return Ok(new RoomResponse(room));
 	}
 
@@ -70,7 +71,7 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult> DeleteRoom(int id)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
 			return NotFound();
 		_db.Terems.Remove(room);
@@ -82,11 +83,22 @@ public class RoomController : ControllerBase
 	[Authorize(Roles = "Admin")]
 	public async Task<ActionResult<RoomResponse>> UpdateRoom(int id, RoomRequest roomRequest)
 	{
-		Terem room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id);
+		Terem? room = await _db.Terems.FirstOrDefaultAsync(r => r.Id == id); 
 		if (room == null)
 			return NotFound();
+
+        
+        if (await _db.Terems.AnyAsync(r => r.Room == roomRequest.RoomName && r.Id != id))
+        {
+            return BadRequest(new { Errors = new List<string> { "Another room with this name already exists" } });
+        }
+         if (roomRequest.Seats <= 0)
+        {
+            return BadRequest(new { Errors = new List<string> { "Room must have a positive number of seats" } });
+        }
+
 		room.Update(roomRequest);
-		await _db.SaveChangesAsync();
-		return Ok(new RoomResponse(room));
+        await _db.SaveChangesAsync();
+        return Ok(new RoomResponse(room)); 
 	}
 }

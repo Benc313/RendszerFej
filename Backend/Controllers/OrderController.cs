@@ -1,4 +1,5 @@
-﻿using Backend.Messages;
+﻿using System.Security.Claims;
+using Backend.Messages;
 using Backend.Model;
 using expenseTracker.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("orders")]
+[Route("api/[controller]")]
 public class OrderController : ControllerBase
 {
     private readonly dbContext _db;
@@ -26,6 +27,7 @@ public class OrderController : ControllerBase
         List<Orders> orders = await _db.Orders
             .Include(o => o.Tickets)
             .ThenInclude(t => t.Screening)
+            .Include(o => o.User) // EZ HOZZÁADVA!
             .ToListAsync();
         
         return Ok(orders.Select(o => new OrderResponse(o)).ToList());
@@ -44,7 +46,7 @@ public class OrderController : ControllerBase
             {
                 user = await _db.Users.FirstOrDefaultAsync(u => u.Id == orderRequest.UserId);
             }
-
+            
             var order = new Orders(orderRequest, user);
             _db.Orders.Add(order);
 
@@ -87,22 +89,56 @@ public class OrderController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize] // Require login to cancel
     public async Task<ActionResult> CancelOrder(int id)
     {
+        // --- Authorization Check ---
+        var userIdString = User.FindFirstValue("id");
+        if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var currentUserId))
+        {
+            return Unauthorized(new { Errors = new List<string> { "Invalid token." } });
+        }
+
         var order = await _db.Orders
             .Include(o => o.Tickets)
-            .ThenInclude(t => t.Screening)
+            .ThenInclude(t => t.Screening) // Ensure Screening is included for each ticket
             .FirstOrDefaultAsync(o => o.Id == id);
 
         if (order == null)
-            return NotFound();
+        {
+            return NotFound(new { Errors = new List<string> { "Order not found." } });
+        }
 
-        if (order.Tickets.Any(t => t.Screening.ScreeningDate <= DateTime.UtcNow.AddHours(4)))
-            return BadRequest(new { Errors = new List<string> { "Cannot cancel order within 4 hours of screening" } });
+        // Check if the user owns the order or is an Admin/Cashier
+        if (order.UserId != currentUserId && !User.IsInRole("Admin") && !User.IsInRole("Cashier"))
+        {
+            return Forbid(); 
+        }
 
+        // Check if any ticket in the order is for a screening starting within 4 hours
+        foreach (var ticket in order.Tickets)
+        {
+            if (ticket.Screening != null && ticket.Screening.ScreeningDate <= DateTime.UtcNow.AddHours(4))
+            {
+                return BadRequest(new { Errors = new List<string> { "Cannot cancel order: one or more screenings start within 4 hours." } });
+            }
+        }
+      
+        _db.Tickets.RemoveRange(order.Tickets);
         _db.Orders.Remove(order);
 
-        await _db.SaveChangesAsync();
-        return Ok();
+        try
+        {
+            await _db.SaveChangesAsync();
+            return NoContent(); 
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { Errors = new List<string> { "An error occurred while cancelling the order." } });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred." } });
+        }
     }
 }

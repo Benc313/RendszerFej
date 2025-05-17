@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Backend.Messages;
 using Backend.Model;
@@ -13,7 +14,7 @@ using ValidationResult = FluentValidation.Results.ValidationResult;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("")]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
 	private readonly dbContext _db;
@@ -42,13 +43,13 @@ public class AuthController : ControllerBase
 
 			_db.Users.Add(new Users(registerRequest));
 			await _db.SaveChangesAsync();
-			return Ok();
+			  return Ok(new { success = true, message = "Registration successful" });
 		}
-		catch (DbUpdateException ex)
+		catch (DbUpdateException)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An error occurred while saving the user. Please try again later." } });
 		}
-		catch (Exception ex)
+		catch (Exception)
 		{
 			return StatusCode(500, new { Errors = new List<string> { "An unexpected error occurred. Please try again later." } });
 		}
@@ -57,21 +58,29 @@ public class AuthController : ControllerBase
 	[HttpPost("login")]
 	public async Task<ActionResult<LoginResponse>> Login(LoginRequest loginRequest)
 	{
-		Users user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email);
+		Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Email == loginRequest.Email); 
 		if (user == null)
-			return BadRequest(new { Errors = new List<string> { "Invalid email or passworda" } });
+			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } }); 
 
 		if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
 			return BadRequest(new { Errors = new List<string> { "Invalid email or password" } });
+
+        // Check if banned
+        if (user.BannedTill.HasValue && user.BannedTill.Value > DateTime.UtcNow)
+        {
+             return Unauthorized(new { Errors = new List<string> { $"User is banned until {user.BannedTill.Value}" } });
+        }
+
 		// Generate JWT token
 		var tokenHandler = new JwtSecurityTokenHandler();
-		var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"]);
+		var secret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured.");
+		var key = Encoding.UTF8.GetBytes(secret);
 		var tokenDescriptor = new SecurityTokenDescriptor()
 		{
 			Subject = new System.Security.Claims.ClaimsIdentity(new[]
 			{
-				new System.Security.Claims.Claim("id", user.Id.ToString()),
-				new System.Security.Claims.Claim("role", user.Role)
+				new Claim("id", user.Id.ToString()),
+				new Claim("role", user.Role)
 			}),
 			Expires = DateTime.UtcNow.AddDays(1),
 			Issuer = _configuration["Jwt:Issuer"],
@@ -91,14 +100,19 @@ public class AuthController : ControllerBase
 		return Ok(new LoginResponse(user));
 	}
 	
-	[HttpPost("logout")]
-	[Authorize] // Uncomment this line to require authentication
-	public async Task<ActionResult> Logout()
-	{
-		// Remove the token from the cookie
-		Response.Cookies.Delete("accessToken");
-		return Ok();
-	}
-	
-	
+	 [HttpPost("logout")]
+	 [Authorize] // Require login to logout
+         public IActionResult Logout()
+         {
+             // Töröljük a HTTP-only cookie-t
+             Response.Cookies.Delete("accessToken", new CookieOptions
+             {
+                 HttpOnly = true,
+                 Secure = true, 
+                 SameSite = SameSiteMode.Strict 
+             });
+             return Ok(new { message = "Logout successful" });
+         }
+
+
 }

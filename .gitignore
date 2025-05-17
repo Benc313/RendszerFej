@@ -6,6 +6,7 @@ node_modules/
 
 # Ignore environment variable files
 .env
+.env* 
 
 # Ignore build directories
 dist/
@@ -21,6 +22,9 @@ Thumbs.db
 
 # Ignore IDE specific files
 .vscode/
+!.vscode/settings.json # Keep specific settings if needed
+!.vscode/extensions.json
+!.vscode/launch.json
 .idea/
 *.iml
 
@@ -48,3 +52,20 @@ obj/
 Backend/LocalDatabase.db
 Backend/LocalDatabase.db-shm
 Backend/LocalDatabase.db-wal
+
+# Frontend (Node/Vite/React) specific files
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/*.tsbuildinfo
+frontend/node_modules/.tmp/
+frontend/logs/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+frontend/.npm/
+frontend/.eslintcache
+frontend/.stylelintcache
+frontend/.prettiercache

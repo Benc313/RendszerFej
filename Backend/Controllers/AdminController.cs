@@ -8,8 +8,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend.Controllers;
 
 [ApiController]
+[Route("api/[controller]")]
 [Authorize(Roles = "Admin")]
-[Route("/admin")]
 public class AdminController : ControllerBase
 {
     private readonly dbContext _db;
@@ -19,7 +19,7 @@ public class AdminController : ControllerBase
         _db = db;
     }
 
-    [HttpPost("admin/cashier")]
+    [HttpPost("cashier")] 
     public async Task<ActionResult> AddCashier( CashierRequest cashierRequest)
     {
         try
@@ -43,7 +43,7 @@ public class AdminController : ControllerBase
         }
     }
 
-    [HttpDelete("admin/user/{id}")]
+    [HttpDelete("user/{id}")] 
     public async Task<ActionResult> DeleteCashier(int id)
     {
         try
@@ -92,5 +92,21 @@ public class AdminController : ControllerBase
             return StatusCode(500, new { Errors = new List<string> { "Unexpected error occurred." } });
         }
     }
+
+    [HttpPost("unban/{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> UnbanUser(int id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+      if (user == null)
+          return NotFound(new { Errors = new List<string> { "User not found." } });
+
+      if (user.BannedTill == null)
+            return BadRequest(new { Errors = new List<string> { "User is not banned." } });
+
+     user.BannedTill = null;
+     await _db.SaveChangesAsync();
+      return Ok(new { Message = "User unbanned successfully." });
+}
 
 }

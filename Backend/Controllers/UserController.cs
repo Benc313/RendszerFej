@@ -1,4 +1,4 @@
-﻿using Backend.Messages;
+﻿using Backend.Messages; 
 using Backend.Model;
 using expenseTracker.Data;
 using expenseTracker.Validators;
@@ -9,11 +9,13 @@ using Microsoft.AspNetCore.Identity.Data;
 using ValidationResult = FluentValidation.Results.ValidationResult;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Linq; 
 
 namespace Backend.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")] 
     public class UserController : ControllerBase
     {
         private readonly dbContext _db;
@@ -22,31 +24,97 @@ namespace Backend.Controllers
             _db = db;
         }
 
-        [HttpPut("user/{id}")]      //közel sincs kész, nem lehet ellenőrizni, hogy a felhasználó a saját profilját szerkeszti-e jwt nélkül (elvileg)
-        public async Task<ActionResult> UpdateUser(int id, UserRequest user)
+        // ÚJ VÉGPONT: Bejelentkezett felhasználó adatainak lekérése
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<MeResponse>> GetCurrentUser() 
         {
-            if (/*id != user.Id*/ false)    //ide úgyis azt a userId-t fogjuk kapni, mint ami a jwt-ben van, vagymi
-                return BadRequest();
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token or user ID not found." } });
+            }
 
-            Users existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _db.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Unauthorized(new { Errors = new List<string> { "User not found." } });
+            }
+
+          
+            return Ok(new MeResponse(user));
+        }
+
+        // ÚJ VÉGPONT: Bejelentkezett felhasználó rendeléseinek lekérése
+        [HttpGet("my-orders")]
+        [Authorize] // Csak bejelentkezett felhasználók érhetik el
+        public async Task<ActionResult<List<OrderResponse>>> GetMyOrders()
+        {
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token or user ID not found." } });
+            }
+
+            var orders = await _db.Orders
+                .Where(o => o.UserId == userId) 
+                .Include(o => o.Tickets)
+                    .ThenInclude(t => t.Screening)
+                        .ThenInclude(s => s.Movie) 
+                .Include(o => o.Tickets)
+                    .ThenInclude(t => t.Screening)
+                        .ThenInclude(s => s.Terem) 
+                .OrderByDescending(o => o.Id) // Legújabb elöl
+                .ToListAsync();
+
+            if (orders == null)
+            {
+                return Ok(new List<OrderResponse>());
+            }
+
+            var orderResponses = orders.Select(o => new OrderResponse(o)).ToList();
+            return Ok(orderResponses);
+        }
+
+        [HttpPut("user/{id}")]
+        [Authorize] // Require authentication
+        public async Task<ActionResult> UpdateUser(int id, UserRequest userRequest) 
+        {
+            var userIdString = User.FindFirstValue("id");
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var currentUserId))
+            {
+                return Unauthorized(new { Errors = new List<string> { "Invalid token." } });
+            }
+
+            // user saját profilját frissíti-e
+            if (currentUserId != id)
+            {
+                 if (!User.IsInRole("Admin")) 
+                 {
+                    return Forbid(); 
+                 }
+            }
+
+            Users? existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (existingUser == null)
                 return NotFound();
 
             UserUpdateValidator validator = new UserUpdateValidator(_db);
-            ValidationResult result = validator.Validate(user);
+            ValidationResult result = await validator.ValidateAsync(userRequest); 
             if (!result.IsValid)
-                return BadRequest(result.Errors.Select(x => x.ErrorMessage).ToList());
+                return BadRequest(new { Errors = result.Errors.Select(x => x.ErrorMessage).ToList() });
 
-            if (user.Name != null)
-                existingUser.Name = user.Name;
-            if(user.Email != null)
-                existingUser.Email = user.Email;
-            if(user.Phone != null)
-                existingUser.Phone = user.Phone;
-            if(user.Password != null)
-            existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            if (!string.IsNullOrWhiteSpace(userRequest.Email))
+            {
+                existingUser.Email = userRequest.Email;
+            }
+            if (!string.IsNullOrWhiteSpace(userRequest.Phone))
+                existingUser.Phone = userRequest.Phone;
 
-            //_db.Entry(user).State = EntityState.Modified;     //ezt autofilll baszta ide, nem tudom mit jelent, de működink nélküle so \-*_*-/
+            if (!string.IsNullOrWhiteSpace(userRequest.Password))
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userRequest.Password);
+
             try
             {
                 await _db.SaveChangesAsync();
@@ -60,10 +128,11 @@ namespace Backend.Controllers
             }
             return NoContent();
         }
+
         [HttpDelete("user/{id}")]
         public async Task<ActionResult> DeleteUser(int id)
         {
-            Users user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            Users? user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
                 return NotFound();
             _db.Users.Remove(user);
@@ -76,9 +145,8 @@ namespace Backend.Controllers
             return await _db.Users.AnyAsync(e => e.Id == id);
         }
 
-        //for testing purposes only --- later admin use only
         [HttpGet("users")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")] 
         public async Task<ActionResult<List<Users>>> GetUsers()
         {
             List<Users> users = await _db.Users.ToListAsync();
@@ -86,3 +154,5 @@ namespace Backend.Controllers
         }
     }
 }
+
+
